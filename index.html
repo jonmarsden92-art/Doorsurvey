@@ -33,7 +33,7 @@
         .door-count { background: #28a745; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; display: inline-block; margin-bottom: 12px; }
         .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
         .install-prompt { background: #fff3cd; border: 2px solid #ffc107; padding: 12px; margin: 12px; border-radius: 8px; display: none; }
-        #docxStatus { font-size: 13px; color: #444; margin-top: 8px; }
+        #pdfStatus { font-size: 13px; color: #444; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -99,38 +99,37 @@
     <div class="button-group">
         <button class="secondary" onclick="exportCSV()">📤 Export CSV</button>
         <div>
-            <button class="secondary" onclick="exportWord()">📄 Export Word</button>
-            <div id="docxStatus" aria-live="polite"></div>
+            <button class="secondary" onclick="exportPDF()">📄 Export PDF</button>
+            <div id="pdfStatus" aria-live="polite"></div>
         </div>
     </div>
     <button class="danger" onclick="clearAllDoors()">🗑️ Clear All Doors</button>
 </div>
 
-<!-- Load the UMD bundle of docx (exposes window.docx). Loading this synchronously before your script avoids Safari treating subsequent downloads as non-user-initiated. -->
-<script src="https://cdn.jsdelivr.net/npm/docx@8.4.1/build/index.umd.js"></script>
+<!-- html2pdf bundle (includes html2canvas and jsPDF). Exposes window.html2pdf -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
 
 <script>
-    // Show load status for the docx library
-    const docxStatus = document.getElementById('docxStatus');
-    function setDocxStatus(msg, isError) {
-        if (!docxStatus) return;
-        docxStatus.innerText = msg;
-        docxStatus.style.color = isError ? '#b2302d' : '#2b7a0b';
+    // Show load status for the PDF library
+    const pdfStatus = document.getElementById('pdfStatus');
+    function setPdfStatus(msg, isError) {
+        if (!pdfStatus) return;
+        pdfStatus.innerText = msg;
+        pdfStatus.style.color = isError ? '#b2302d' : '#2b7a0b';
     }
 
-    if (typeof window.docx !== 'undefined') {
-        setDocxStatus('Word export library loaded ✓');
+    if (typeof window.html2pdf !== 'undefined') {
+        setPdfStatus('PDF export library loaded ✓');
     } else {
-        setDocxStatus('Word export library not available', true);
-        // Keep attempting to detect for a short period in case of slow network
+        setPdfStatus('PDF export library not available', true);
         let tries = 0;
         const checkInterval = setInterval(() => {
             tries++;
-            if (typeof window.docx !== 'undefined') {
-                setDocxStatus('Word export library loaded ✓');
+            if (typeof window.html2pdf !== 'undefined') {
+                setPdfStatus('PDF export library loaded ✓');
                 clearInterval(checkInterval);
-            } else if (tries > 20) { // ~10s
-                setDocxStatus('Word export library failed to load. Use CSV export or try desktop Safari/Chrome.', true);
+            } else if (tries > 20) {
+                setPdfStatus('PDF library failed to load. Use CSV export or try desktop Safari/Chrome.', true);
                 clearInterval(checkInterval);
             }
         }, 500);
@@ -277,69 +276,91 @@
         URL.revokeObjectURL(a.href);
     }
 
-    async function exportWord() {
+    async function exportPDF() {
         try {
             if (!doors || doors.length === 0) { alert('No doors to export'); return; }
-            if (typeof window.docx === 'undefined') {
-                alert("The Word export library is unavailable. Try again after it finishes loading or use the CSV export.");
+            if (typeof window.html2pdf === 'undefined') {
+                alert("The PDF export library is still loading or unavailable. Try again in a moment or use the CSV export.");
                 return;
             }
 
-            const { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType } = window.docx;
+            // Build a printable container
+            const container = document.createElement('div');
+            container.style.padding = '12px';
+            container.style.background = 'white';
+            container.style.color = '#000';
+            container.style.fontFamily = 'Arial, Helvetica, sans-serif';
+            container.style.width = '100%';
+            container.style.boxSizing = 'border-box';
 
-            // Build header row
-            const headerCells = ["No.", "Name", "W", "H", "Details"].map(h =>
-                new TableCell({
-                    children: [new Paragraph({ text: h, bold: true })]
-                })
-            );
+            // Header info
+            const projName = document.getElementById('projectName').value || 'N/A';
+            const projRef = document.getElementById('projectRef').value || '';
+            const surveyDate = document.getElementById('surveyDate').value || '';
+            const surveyor = document.getElementById('surveyorName').value || 'N/A';
 
-            const rows = [
-                new TableRow({ children: headerCells })
-            ];
+            const headerHtml = `
+                <div style="text-align:center">
+                    <h1 style="margin:0 0 8px 0">Door Survey Report</h1>
+                    <p style="margin:0 0 12px 0"><strong>Project:</strong> ${escapeHtml(projName)} ${projRef ? '— ' + escapeHtml(projRef) : ''}</p>
+                    <p style="margin:0 0 12px 0"><strong>Surveyor:</strong> ${escapeHtml(surveyor)} ${surveyDate ? ' | ' + escapeHtml(surveyDate) : ''}</p>
+                </div>
+            `;
+            container.innerHTML = headerHtml;
 
+            // Build table
+            let tableHtml = '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">';
+            tableHtml += '<thead><tr>';
+            const cols = ["Door No.","Door Name","Width","Height","Frame Depth","Dim Detail","Thickness","Frame1","Frame2","Leaf Finish","Frame Finish","Architrave","Cylinder","Suite Ref","Override","Handing"];
+            cols.forEach(c => {
+                tableHtml += `<th style="border:1px solid #333;padding:6px;background:#eee;text-align:left">${escapeHtml(c)}</th>`;
+            });
+            tableHtml += '</tr></thead><tbody>';
             doors.forEach(d => {
-                const cells = [
-                    d.doorNumber || "-",
-                    d.doorName || "-",
-                    d.width || "-",
-                    d.height || "-",
-                    d.dimDetail || "-"
-                ].map(v => new TableCell({ children: [new Paragraph(String(v))] }));
-                rows.push(new TableRow({ children: cells }));
+                tableHtml += '<tr>';
+                const vals = [
+                    d.doorNumber, d.doorName, d.width, d.height, d.frameDepth, d.dimDetail, d.doorThickness,
+                    d.frameProfile1, d.frameProfile2, d.doorLeafFinish, d.doorFrameFinish,
+                    d.architraveProfile, d.cylinderProfile, d.suiteRef, d.overrideType, d.handing
+                ];
+                vals.forEach(v => {
+                    tableHtml += `<td style="border:1px solid #333;padding:6px;vertical-align:top">${escapeHtml(v || '-')}</td>`;
+                });
+                tableHtml += '</tr>';
             });
+            tableHtml += '</tbody></table>';
 
-            const table = new Table({
-                rows: rows
-            });
+            container.innerHTML += tableHtml;
 
-            const doc = new Document({
-                sections: [{
-                    children: [
-                        new Paragraph({ text: "Door Survey Report", heading: "Title", alignment: AlignmentType.CENTER }),
-                        new Paragraph({ text: `Project: ${document.getElementById('projectName').value || 'N/A'}` }),
-                        new Paragraph({ text: `Surveyor: ${document.getElementById('surveyorName').value || 'N/A'}` }),
-                        new Paragraph({ text: "" }),
-                        table
-                    ]
-                }]
-            });
+            // Append off-screen for rendering, invisible to user
+            container.style.position = 'fixed';
+            container.style.left = '-9999px';
+            document.body.appendChild(container);
 
-            // Generate blob and force download
-            const blob = await Packer.toBlob(doc);
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Door-Survey-${Date.now()}.docx`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            // revoke after a short delay to ensure download has started
-            setTimeout(() => URL.revokeObjectURL(url), 2000);
+            const opt = {
+                margin:       0.4,
+                filename:     `Door-Survey-${Date.now()}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Generate PDF and save
+            await html2pdf().set(opt).from(container).save();
+
+            // cleanup
+            document.body.removeChild(container);
         } catch (err) {
-            console.error('Word export failed', err);
-            alert('Failed to export Word document. See console for details.');
+            console.error('PDF export failed', err);
+            alert('Failed to export PDF. See console for details.');
         }
+    }
+
+    // Simple escape to avoid injecting markup into the PDF content
+    function escapeHtml(str) {
+        return String(str || '').replace(/[&<>"']/g, function (m) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
+        });
     }
 
     loadData();
