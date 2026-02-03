@@ -7,9 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#007bff">
-    <!-- If you previously used a data: manifest, you can replace this with an actual manifest file when ready -->
     <link rel="manifest" href="manifest.json">
-
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; padding-bottom: 20px; -webkit-font-smoothing: antialiased; }
@@ -106,11 +104,9 @@
     <button class="danger" onclick="clearAllDoors()">🗑️ Clear All Doors</button>
 </div>
 
-<!-- html2pdf bundle (includes html2canvas and jsPDF). Exposes window.html2pdf -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
 
 <script>
-    // Show load status for the PDF library
     const pdfStatus = document.getElementById('pdfStatus');
     function setPdfStatus(msg, isError) {
         if (!pdfStatus) return;
@@ -135,7 +131,6 @@
         }, 500);
     }
 
-    // Defaults
     document.getElementById("surveyDate").value = new Date().toISOString().split("T")[0];
     let doors = [];
     let lastDoor = null;
@@ -153,9 +148,7 @@
                 doors = data.doors || [];
                 refreshTable();
             }
-        } catch (e) {
-            console.error('Error loading data', e);
-        }
+        } catch (e) { console.error('Error loading data', e); }
     }
 
     function saveData() {
@@ -177,7 +170,6 @@
     function addDoor() {
         const dNo = document.getElementById('doorNumber').value.trim();
         if (!dNo) { alert('Please enter a Door Number'); return; }
-
         const doorData = {
             doorNumber: dNo,
             doorName: document.getElementById('doorName').value,
@@ -196,11 +188,9 @@
             overrideType: document.getElementById('overrideType').value,
             handing: document.getElementById('handing').value
         };
-
         lastDoor = { ...doorData };
         delete lastDoor.doorNumber;
         delete lastDoor.doorName;
-
         doors.push(doorData);
         refreshTable();
         saveData();
@@ -215,22 +205,9 @@
         doors.forEach((door, index) => {
             const row = tbody.insertRow();
             const vals = [
-                door.doorNumber,
-                door.doorName,
-                door.width,
-                door.height,
-                door.frameDepth,
-                door.dimDetail,
-                door.doorThickness,
-                door.frameProfile1,
-                door.frameProfile2,
-                door.doorLeafFinish,
-                door.doorFrameFinish,
-                door.architraveProfile,
-                door.cylinderProfile,
-                door.suiteRef,
-                door.overrideType,
-                door.handing
+                door.doorNumber, door.doorName, door.width, door.height, door.frameDepth, door.dimDetail, door.doorThickness,
+                door.frameProfile1, door.frameProfile2, door.doorLeafFinish, door.doorFrameFinish,
+                door.architraveProfile, door.cylinderProfile, door.suiteRef, door.overrideType, door.handing
             ];
             vals.forEach(v => { row.insertCell().innerText = (v !== undefined && v !== null && v !== '') ? v : '-'; });
             const actionCell = row.insertCell();
@@ -241,10 +218,8 @@
             delBtn.onclick = () => { if (confirm('Delete this door?')) { doors.splice(index, 1); refreshTable(); saveData(); } };
             actionCell.appendChild(delBtn);
         });
-
         const countEl = document.getElementById('doorCount');
-        if (doors.length === 1) countEl.innerText = '1 Door Added';
-        else countEl.innerText = `${doors.length} Doors Added`;
+        countEl.innerText = doors.length === 1 ? '1 Door Added' : `${doors.length} Doors Added`;
     }
 
     function clearAllDoors() { if (confirm('Clear all?')) { doors = []; refreshTable(); saveData(); } }
@@ -284,16 +259,20 @@
                 return;
             }
 
-            // Build a printable container
+            // Create printable container that is hidden but still renderable
             const container = document.createElement('div');
             container.style.padding = '12px';
             container.style.background = 'white';
             container.style.color = '#000';
             container.style.fontFamily = 'Arial, Helvetica, sans-serif';
-            container.style.width = '100%';
+            container.style.width = '800px'; // explicit width helps rendering
             container.style.boxSizing = 'border-box';
+            container.style.position = 'absolute';
+            container.style.left = '0';
+            container.style.top = '0';
+            container.style.visibility = 'hidden'; // hidden but renderable
+            container.style.zIndex = '9999';
 
-            // Header info
             const projName = document.getElementById('projectName').value || 'N/A';
             const projRef = document.getElementById('projectRef').value || '';
             const surveyDate = document.getElementById('surveyDate').value || '';
@@ -308,7 +287,7 @@
             `;
             container.innerHTML = headerHtml;
 
-            // Build table
+            // Build table HTML
             let tableHtml = '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">';
             tableHtml += '<thead><tr>';
             const cols = ["Door No.","Door Name","Width","Height","Frame Depth","Dim Detail","Thickness","Frame1","Frame2","Leaf Finish","Frame Finish","Architrave","Cylinder","Suite Ref","Override","Handing"];
@@ -332,10 +311,10 @@
 
             container.innerHTML += tableHtml;
 
-            // Append off-screen for rendering, invisible to user
-            container.style.position = 'fixed';
-            container.style.left = '-9999px';
             document.body.appendChild(container);
+
+            // allow a short time for layout/render before capture
+            await new Promise(res => setTimeout(res, 150));
 
             const opt = {
                 margin:       0.4,
@@ -345,18 +324,16 @@
                 jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
             };
 
-            // Generate PDF and save
             await html2pdf().set(opt).from(container).save();
 
             // cleanup
-            document.body.removeChild(container);
+            if (container && container.parentNode) document.body.removeChild(container);
         } catch (err) {
             console.error('PDF export failed', err);
             alert('Failed to export PDF. See console for details.');
         }
     }
 
-    // Simple escape to avoid injecting markup into the PDF content
     function escapeHtml(str) {
         return String(str || '').replace(/[&<>"']/g, function (m) {
             return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
@@ -365,7 +342,6 @@
 
     loadData();
 
-    // PWA Install Prompt
     window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('installPrompt').style.display = 'block'; });
     function installApp() { if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; document.getElementById('installPrompt').style.display = 'none'; } }
 </script>
