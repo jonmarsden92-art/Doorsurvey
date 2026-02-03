@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Door Survey App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#007bff">
+<link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIkRvb3IgU3VydmV5IEFwcCIsCiAgInNob3J0X25hbWUiOiAiRG9vciBTdXJ2ZXkiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDdiZmYiLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImRhdGE6aW1hZ2Uvc3ZnK3htbCwlM0NzdmcgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJyB2aWV3Qm94PScwIDAgMTAwIDEwMCclM0UlM0NyZWN0IGZpbGw9JyUyMzAwN2JmZicgd2lkdGg9JzEwMCcgaGVpZ2h0PScxMDAnLyUzRSUzQ3RleHQgeD0nNTAnIHk9JzU1JyBmb250LXNpemU9JzUwJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBmaWxsPSd3aGl0ZSclM0UlRjAlOUYlOUElQUElM0MvdGV4dCUzRSUzQy9zdmclM0UiLAogICAgInNpemVzIjogIjUxMng1MTIiLAogICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICB9XQp9">
+<style>
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: #f4f4f4;
+  margin: 0;
+  padding: 0;
+  padding-bottom: 20px;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  background: #007bff;
+  color: white;
+  margin: 0;
+  padding: 16px;
+  font-size: 22px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+h2 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.section {
+  background: #fff;
+  padding: 16px;
+  margin: 12px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+label {
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #555;
+}
+
+input, textarea {
+  width: 100%;
+  padding: 12px;
+  margin: 0;
+  font-size: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.2s;
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  background: white;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+}
+
+button:active {
+  transform: scale(0.98);
+  box-shadow: 0 1px 4px rgba(0,123,255,0.3);
+}
+
+button.secondary {
+  background: #6c757d;
+  box-shadow: 0 2px 8px rgba(108,117,125,0.3);
+}
+
+button.copy {
+  background: #28a745;
+  box-shadow: 0 2px 8px rgba(40,167,69,0.3);
+}
+
+button.danger {
+  background: #dc3545;
+  box-shadow: 0 2px 8px rgba(220,53,69,0.3);
+}
+
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 12px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px 6px;
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  background: #007bff;
+  color: white;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+.door-count {
+  background: #28a745;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+.button-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.install-prompt {
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  padding: 12px;
+  margin: 12px;
+  border-radius: 8px;
+  display: none;
+}
+
+.install-prompt button {
+  background: #ffc107;
+  color: #000;
+  margin-top: 8px;
+}
+
+@media (max-width: 600px) {
+  th, td {
+    font-size: 11px;
+    padding: 6px 4px;
+  }
+}
+</style>
+</head>
+<body>
+
+<h1>🚪 Door Survey</h1>
+
+<div id="installPrompt" class="install-prompt">
+  <strong>📱 Install this app!</strong>
+  <p style="margin: 8px 0; font-size: 14px;">Add to your home screen for easy access and offline use.</p>
+  <button onclick="installApp()">Install App</button>
+  <button onclick="document.getElementById('installPrompt').style.display='none'" style="background: #6c757d; margin-top: 4px;">Maybe Later</button>
+</div>
+
+<div class="section">
+<h2>Project Information</h2>
+
+<label>Project Ref</label>
+<input id="projectRef">
+
+<label>Project Name</label>
+<input id="projectName">
+
+<label>Survey Date</label>
+<input id="surveyDate" type="date">
+
+<label>Surveyor Name</label>
+<input id="surveyorName">
+</div>
+
+<div class="section">
+<h2>Add Door</h2>
+
+<button class="copy" onclick="copyPrevious()">🔁 Copy Previous Door Details</button>
+
+<label>Door Number</label>
+<input id="doorNumber" type="text" placeholder="e.g., D01">
+
+<label>Door Name</label>
+<input id="doorName" type="text" placeholder="e.g., Main Entrance">
+
+<label>Width (mm)</label>
+<input id="width" type="number" placeholder="e.g., 900">
+
+<label>Height (mm)</label>
+<input id="height" type="number" placeholder="e.g., 2100">
+
+<label>Frame Depth</label>
+<input id="frameDepth" type="text">
+
+<label>Dimension Detail</label>
+<textarea id="dimDetail" placeholder="Additional dimension notes..."></textarea>
+
+<label>Existing Door Thickness</label>
+<input id="doorThickness" type="text">
+
+<label>Existing Frame Profile 1</label>
+<input id="frameProfile1" type="text">
+
+<label>Existing Frame Profile 2</label>
+<input id="frameProfile2" type="text">
+
+<label>Door Leaf Finish</label>
+<input id="doorLeafFinish" type="text">
+
+<label>Door Frame Finish</label>
+<input id="doorFrameFinish" type="text">
+
+<label>Existing Architrave Profile</label>
+<input id="architraveProfile" type="text">
+
+<label>Existing Cylinder Profile</label>
+<input id="cylinderProfile" type="text">
+
+<label>Existing Suite Ref</label>
+<input id="suiteRef" type="text">
+
+<label>Existing Override Type</label>
+<input id="overrideType" type="text">
+
+<label>Handing</label>
+<input id="handing" type="text" placeholder="e.g., LH or RH">
+
+<button onclick="addDoor()">➕ Add Door to Schedule</button>
+</div>
+
+<div class="section">
+<h2>Door Schedule</h2>
+
+<div class="door-count" id="doorCount">0 Doors Added</div>
+
+<div class="table-container">
+<table id="doorTable">
+<thead>
+<tr>
+<th>Door No.</th>
+<th>Door Name</th>
+<th>Width</th>
+<th>Height</th>
+<th>Frame Depth</th>
+<th>Dim Detail</th>
+<th>Thickness</th>
+<th>Frame Prof. 1</th>
+<th>Frame Prof. 2</th>
+<th>Leaf Finish</th>
+<th>Frame Finish</th>
+<th>Architrave</th>
+<th>Cylinder</th>
+<th>Suite Ref</th>
+<th>Override</th>
+<th>Handing</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="doorTableBody">
+</tbody>
+</table>
+</div>
+
+<div class="button-group">
+<button class="secondary" onclick="exportCSV()">📤 Export CSV</button>
+<button class="secondary" onclick="exportWord()">📄 Export Word</button>
+</div>
+
+<button class="danger" onclick="clearAllDoors()">🗑️ Clear All Doors</button>
+</div>
+
+<script src="https://unpkg.com/docx@8.4.1/build/index.js"></script>
+<script>
+// Initialize
+document.getElementById("surveyDate").value = new Date().toISOString().split("T")[0];
+
+let doors = [];
+let lastDoor = null;
+let deferredPrompt;
+
+// Load saved data
+function loadData() {
+  const saved = localStorage.getItem('doorSurveyData');
+  if (saved) {
+    const data = JSON.parse(saved);
+    document.getElementById('projectRef').value = data.projectRef || '';
+    document.getElementById('projectName').value = data.projectName || '';
+    document.getElementById('surveyDate').value = data.surveyDate || '';
+    document.getElementById('surveyorName').value = data.surveyorName || '';
+    doors = data.doors || [];
+    refreshTable();
+  }
+}
+
+// Save data
+function saveData() {
+  const data = {
+    projectRef: document.getElementById('projectRef').value,
+    projectName: document.getElementById('projectName').value,
+    surveyDate: document.getElementById('surveyDate').value,
+    surveyorName: document.getElementById('surveyorName').value,
+    doors: doors
+  };
+  localStorage.setItem('doorSurveyData', JSON.stringify(data));
+}
+
+// Auto-save project info
+['projectRef', 'projectName', 'surveyDate', 'surveyorName'].forEach(id => {
+  document.getElementById(id).addEventListener('change', saveData);
+});
+
+function addDoor() {
+  const doorNumber = document.getElementById('doorNumber').value;
+  const doorName = document.getElementById('doorName').value;
+
+  if (!doorNumber) {
+    alert('Please enter a Door Number');
+    return;
+  }
+
+  const doorData = {
+    doorNumber: doorNumber,
+    doorName: doorName,
+    width: document.getElementById('width').value,
+    height: document.getElementById('height').value,
+    frameDepth: document.getElementById('frameDepth').value,
+    dimDetail: document.getElementById('dimDetail').value,
+    doorThickness: document.getElementById('doorThickness').value,
+    frameProfile1: document.getElementById('frameProfile1').value,
+    frameProfile2: document.getElementById('frameProfile2').value,
+    doorLeafFinish: document.getElementById('doorLeafFinish').value,
+    doorFrameFinish: document.getElementById('doorFrameFinish').value,
+    architraveProfile: document.getElementById('architraveProfile').value,
+    cylinderProfile: document.getElementById('cylinderProfile').value,
+    suiteRef: document.getElementById('suiteRef').value,
+    overrideType: document.getElementById('overrideType').value,
+    handing: document.getElementById('handing').value
+  };
+
+  lastDoor = { ...doorData };
+  delete lastDoor.doorNumber;
+  delete lastDoor.doorName;
+
+  doors.push(doorData);
+  refreshTable();
+  saveData();
+
+  // Clear only door number and name
+  document.getElementById('doorNumber').value = '';
+  document.getElementById('doorName').value = '';
+  
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function refreshTable() {
+  const tbody = document.getElementById('doorTableBody');
+  tbody.innerHTML = '';
+
+  doors.forEach((door, index) => {
+    const row = tbody.insertRow();
+    
+    const values = [
+      door.doorNumber,
+      door.doorName,
+      door.width,
+      door.height,
+      door.frameDepth,
+      door.dimDetail,
+      door.doorThickness,
+      door.frameProfile1,
+      door.frameProfile2,
+      door.doorLeafFinish,
+      door.doorFrameFinish,
+      door.architraveProfile,
+      door.cylinderProfile,
+      door.suiteRef,
+      door.overrideType,
+      door.handing
+    ];
+
+    values.forEach(val => {
+      const cell = row.insertCell();
+      cell.innerText = val || '-';
+    });
+
+    // Add delete button
+    const actionCell = row.insertCell();
+    const deleteBtn = document.createElement('button');
+    deleteBtn.innerText = '🗑️';
+    deleteBtn.style.width = 'auto';
+    deleteBtn.style.padding = '4px 12px';
+    deleteBtn.style.fontSize = '14px';
+    deleteBtn.className = 'danger';
+    deleteBtn.onclick = () => deleteDoor(index);
+    actionCell.appendChild(deleteBtn);
+  });
+
+  document.getElementById('doorCount').innerText = `${doors.length} Door${doors.length !== 1 ? 's' : ''} Added`;
+}
+
+function deleteDoor(index) {
+  if (confirm('Delete this door?')) {
+    doors.splice(index, 1);
+    refreshTable();
+    saveData();
+  }
+}
+
+function clearAllDoors() {
+  if (confirm('Are you sure you want to delete ALL doors? This cannot be undone.')) {
+    doors = [];
+    refreshTable();
+    saveData();
+  }
+}
+
+function copyPrevious() {
+  if (!lastDoor) {
+    alert('No previous door to copy yet.');
+    return;
+  }
+
+  Object.keys(lastDoor).forEach(key => {
+    const elem = document.getElementById(key);
+    if (elem) elem.value = lastDoor[key];
+  });
+}
+
+function exportCSV() {
+  let csv = "Door Number,Door Name,Width,Height,Frame Depth,Dim Detail,Door Thickness,Frame Profile 1,Frame Profile 2,Door Leaf Finish,Door Frame Finish,Architrave Profile,Cylinder Profile,Suite Ref,Override Type,Handing\n";
+  
+  doors.forEach(door => {
+    const row = [
+      door.doorNumber,
+      door.doorName,
+      door.width,
+      door.height,
+      door.frameDepth,
+      door.dimDetail,
+      door.doorThickness,
+      door.frameProfile1,
+      door.frameProfile2,
+      door.doorLeafFinish,
+      door.doorFrameFinish,
+      door.architraveProfile,
+      door.cylinderProfile,
+      door.suiteRef,
+      door.overrideType,
+      door.handing
+    ];
+    csv += row.map(v => `"${v || ''}"`).join(',') + '\n';
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `door-survey-${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function exportWord() {
+  const { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType } = window.docx;
+
+  const projectRef = document.getElementById('projectRef').value;
+  const projectName = document.getElementById('projectName').value;
+  const surveyDate = document.getElementById('surveyDate').value;
+  const surveyorName = document.getElementById('surveyorName').value;
+
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: [
+        new Paragraph({ 
+          text: "Door Survey Report", 
+          heading: "Title",
+          alignment: AlignmentType.CENTER
+        }),
+        new Paragraph({ text: "" }),
+        new Paragraph({ text: `Project Ref: ${projectRef}` }),
+        new Paragraph({ text: `Project Name: ${projectName}` }),
+        new Paragraph({ text: `Survey Date: ${surveyDate}` }),
+        new Paragraph({ text: `Surveyor Name: ${surveyorName}` }),
+        new Paragraph({ text: `Total Doors: ${doors.length}` }),
+        new Paragraph({ text: "" })
+      ]
+    }]
+  });
+
+  const headers = [
+    "Door No.", "Door Name", "Width", "Height", "Frame Depth",
+    "Dim Detail", "Thickness", "Frame Prof. 1", "Frame Prof. 2",
+    "Leaf Finish", "Frame Finish", "Architrave",
+    "Cylinder", "Suite Ref", "Override", "Handing"
+  ];
+
+  const tableRows = [new TableRow({
+    children: headers.map(h => new TableCell({
+      children: [new Paragraph({ text: h })],
+      width: { size: 1200, type: WidthType.DXA }
+    }))
+  })];
+
+  doors.forEach(door => {
+    const cells = [
+      door.doorNumber,
+      door.doorName,
+      door.width,
+      door.height,
+      door.frameDepth,
+      door.dimDetail,
+      door.doorThickness,
+      door.frameProfile1,
+      door.frameProfile2,
+      door.doorLeafFinish,
+      door.doorFrameFinish,
+      door.architraveProfile,
+      door.cylinderProfile,
+      door.suiteRef,
+      door.overrideType,
+      door.handing
+    ].map(val => new TableCell({
+      children: [new Paragraph(val || '-')],
+      width: { size: 1200, type: WidthType.DXA }
+    }));
+
+    tableRows.push(new TableRow({ children: cells }));
+  });
+
+  doc.sections[0].children.push(new Table({
+    rows: tableRows,
+    width: { size: 100, type: WidthType.PERCENTAGE }
+  }));
+
+  const blob = await Packer.toBlob(doc);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `door-survey-${Date.now()}.docx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// PWA Install
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installPrompt').style.display = 'block';
+});
+
+function installApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('App installed');
+      }
+      deferredPrompt = null;
+      document.getElementById('installPrompt').style.display = 'none';
+    });
+  }
+}
+
+// Load data on startup
+loadData();
+
+// Service Worker for offline capability
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgZnVuY3Rpb24oZSkge30pOw==');
+}
+</script>
+
+</body>
+</html>
