@@ -7,10 +7,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#007bff">
-    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIkRvb3IgU3VydmV5IEFwcCIsCiAgInNob3J0X25hbWUiOiAiRG9vciBTdXJ2ZXkiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDdiZmYiLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImRhdGE6aW1hZ2Uvc3ZnK3htbCwlM0NzdmcgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJyB2aWV3Qm94PScwIDAgMTAwIDEwMCclM0UlM0NyZWN0IGZpbGw9JyUyMzAwN2JmZicgd2lkdGg9JzEwMCcgaGVpZ2h0PScxMDAnLyUzRSUzQ3RleHQgeD0nNTAnIHk9JzU1JyBmb250LXNpemU9JzUwJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBmaWxsPSd3aGl0ZSclM0UlRjAlOUYlOUElQUElM0MvdGV4dCUzRSUzQy9zdmclM0UiLAogICAgInNpemVzIjogIjUxMng1MTIiLAogICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICB9XQp9">
-    
+    <!-- If you previously used a data: manifest, you can replace this with an actual manifest file when ready -->
+    <link rel="manifest" href="manifest.json">
+
     <style>
-        /* */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; padding-bottom: 20px; -webkit-font-smoothing: antialiased; }
         h1 { background: #007bff; color: white; margin: 0; padding: 16px; font-size: 22px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -20,7 +20,7 @@
         input, textarea { width: 100%; padding: 12px; margin: 0; font-size: 16px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fafafa; transition: all 0.2s; }
         input:focus, textarea:focus { outline: none; border-color: #007bff; background: white; }
         textarea { resize: vertical; min-height: 80px; font-family: inherit; }
-        button { width: 100%; padding: 14px; margin-top: 12px; font-size: 16px; font-weight: 600; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,123,255,0.3); }
+        button { width: 100%; padding: 14px; margin-top: 12px; font-size: 16px; font-weight: 600; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; }
         button:active { transform: scale(0.98); box-shadow: 0 1px 4px rgba(0,123,255,0.3); }
         button.secondary { background: #6c757d; box-shadow: 0 2px 8px rgba(108,117,125,0.3); }
         button.copy { background: #28a745; box-shadow: 0 2px 8px rgba(40,167,69,0.3); }
@@ -33,6 +33,7 @@
         .door-count { background: #28a745; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; display: inline-block; margin-bottom: 12px; }
         .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
         .install-prompt { background: #fff3cd; border: 2px solid #ffc107; padding: 12px; margin: 12px; border-radius: 8px; display: none; }
+        #docxStatus { font-size: 13px; color: #444; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -57,7 +58,7 @@
 <div class="section">
     <h2>Add Door</h2>
     <button class="copy" onclick="copyPrevious()">🔁 Copy Previous Door Details</button>
-    
+
     <label>Door Number</label><input id="doorNumber" type="text" placeholder="e.g., D01">
     <label>Door Name</label><input id="doorName" type="text" placeholder="e.g., Main Entrance">
     <label>Width (mm)</label><input id="width" type="number">
@@ -97,30 +98,64 @@
 
     <div class="button-group">
         <button class="secondary" onclick="exportCSV()">📤 Export CSV</button>
-        <button class="secondary" onclick="exportWord()">📄 Export Word</button>
+        <div>
+            <button class="secondary" onclick="exportWord()">📄 Export Word</button>
+            <div id="docxStatus" aria-live="polite"></div>
+        </div>
     </div>
     <button class="danger" onclick="clearAllDoors()">🗑️ Clear All Doors</button>
 </div>
 
-<script src="https://unpkg.com/docx@8.4.1/build/index.js"></script>
+<!-- Load the UMD bundle of docx (exposes window.docx). Loading this synchronously before your script avoids Safari treating subsequent downloads as non-user-initiated. -->
+<script src="https://cdn.jsdelivr.net/npm/docx@8.4.1/build/index.umd.js"></script>
 
 <script>
-    //
+    // Show load status for the docx library
+    const docxStatus = document.getElementById('docxStatus');
+    function setDocxStatus(msg, isError) {
+        if (!docxStatus) return;
+        docxStatus.innerText = msg;
+        docxStatus.style.color = isError ? '#b2302d' : '#2b7a0b';
+    }
+
+    if (typeof window.docx !== 'undefined') {
+        setDocxStatus('Word export library loaded ✓');
+    } else {
+        setDocxStatus('Word export library not available', true);
+        // Keep attempting to detect for a short period in case of slow network
+        let tries = 0;
+        const checkInterval = setInterval(() => {
+            tries++;
+            if (typeof window.docx !== 'undefined') {
+                setDocxStatus('Word export library loaded ✓');
+                clearInterval(checkInterval);
+            } else if (tries > 20) { // ~10s
+                setDocxStatus('Word export library failed to load. Use CSV export or try desktop Safari/Chrome.', true);
+                clearInterval(checkInterval);
+            }
+        }, 500);
+    }
+
+    // Defaults
     document.getElementById("surveyDate").value = new Date().toISOString().split("T")[0];
     let doors = [];
     let lastDoor = null;
     let deferredPrompt;
 
     function loadData() {
-        const saved = localStorage.getItem('doorSurveyData');
-        if (saved) {
-            const data = JSON.parse(saved);
-            document.getElementById('projectRef').value = data.projectRef || '';
-            document.getElementById('projectName').value = data.projectName || '';
-            document.getElementById('surveyDate').value = data.surveyDate || '';
-            document.getElementById('surveyorName').value = data.surveyorName || '';
-            doors = data.doors || [];
-            refreshTable();
+        try {
+            const saved = localStorage.getItem('doorSurveyData');
+            if (saved) {
+                const data = JSON.parse(saved);
+                document.getElementById('projectRef').value = data.projectRef || '';
+                document.getElementById('projectName').value = data.projectName || '';
+                document.getElementById('surveyDate').value = data.surveyDate || '';
+                document.getElementById('surveyorName').value = data.surveyorName || '';
+                doors = data.doors || [];
+                refreshTable();
+            }
+        } catch (e) {
+            console.error('Error loading data', e);
         }
     }
 
@@ -136,11 +171,12 @@
     }
 
     ['projectRef', 'projectName', 'surveyDate', 'surveyorName'].forEach(id => {
-        document.getElementById(id).addEventListener('change', saveData);
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', saveData);
     });
 
     function addDoor() {
-        const dNo = document.getElementById('doorNumber').value;
+        const dNo = document.getElementById('doorNumber').value.trim();
         if (!dNo) { alert('Please enter a Door Number'); return; }
 
         const doorData = {
@@ -179,77 +215,131 @@
         tbody.innerHTML = '';
         doors.forEach((door, index) => {
             const row = tbody.insertRow();
-            const vals = [door.doorNumber, door.doorName, door.width, door.height, door.frameDepth, door.dimDetail, door.doorThickness, door.frameProfile1, door.frameProfile2, door.doorLeafFinish, door.doorFrameFinish, door.architraveProfile, door.cylinderProfile, door.suiteRef, door.overrideType, door.handing];
-            vals.forEach(v => { row.insertCell().innerText = v || '-'; });
+            const vals = [
+                door.doorNumber,
+                door.doorName,
+                door.width,
+                door.height,
+                door.frameDepth,
+                door.dimDetail,
+                door.doorThickness,
+                door.frameProfile1,
+                door.frameProfile2,
+                door.doorLeafFinish,
+                door.doorFrameFinish,
+                door.architraveProfile,
+                door.cylinderProfile,
+                door.suiteRef,
+                door.overrideType,
+                door.handing
+            ];
+            vals.forEach(v => { row.insertCell().innerText = (v !== undefined && v !== null && v !== '') ? v : '-'; });
             const actionCell = row.insertCell();
             const delBtn = document.createElement('button');
-            delBtn.innerText = '🗑️'; delBtn.className = 'danger'; delBtn.style.padding = '4px 8px';
-            delBtn.onclick = () => { if(confirm('Delete?')) { doors.splice(index, 1); refreshTable(); saveData(); } };
+            delBtn.innerText = '🗑️';
+            delBtn.className = 'danger';
+            delBtn.style.padding = '4px 8px';
+            delBtn.onclick = () => { if (confirm('Delete this door?')) { doors.splice(index, 1); refreshTable(); saveData(); } };
             actionCell.appendChild(delBtn);
         });
-        document.getElementById('doorCount').innerText = `${doors.length} Doors Added`;
+
+        const countEl = document.getElementById('doorCount');
+        if (doors.length === 1) countEl.innerText = '1 Door Added';
+        else countEl.innerText = `${doors.length} Doors Added`;
     }
 
-    function clearAllDoors() { if(confirm('Clear all?')) { doors = []; refreshTable(); saveData(); } }
+    function clearAllDoors() { if (confirm('Clear all?')) { doors = []; refreshTable(); saveData(); } }
 
     function copyPrevious() {
         if (!lastDoor) { alert('No data to copy'); return; }
-        Object.keys(lastDoor).forEach(k => { if(document.getElementById(k)) document.getElementById(k).value = lastDoor[k]; });
+        Object.keys(lastDoor).forEach(k => { const el = document.getElementById(k); if (el) el.value = lastDoor[k]; });
     }
 
     function exportCSV() {
-        let csv = "Door Number,Door Name,Width,Height,Frame Depth,Dim Detail,Thickness,Frame1,Frame2,Leaf,Frame Finish,Architrave,Cylinder,Suite,Override,Handing\n";
+        if (!doors || doors.length === 0) { alert('No doors to export'); return; }
+        const header = ["Door Number","Door Name","Width","Height","Frame Depth","Dim Detail","Thickness","Frame1","Frame2","Leaf","Frame Finish","Architrave","Cylinder","Suite","Override","Handing"];
+        let csv = header.join(',') + "\n";
         doors.forEach(d => {
-            const row = [d.doorNumber, d.doorName, d.width, d.height, d.frameDepth, d.dimDetail, d.doorThickness, d.frameProfile1, d.frameProfile2, d.doorLeafFinish, d.doorFrameFinish, d.architraveProfile, d.cylinderProfile, d.suiteRef, d.overrideType, d.handing];
-            csv += row.map(v => `"${v || ''}"`).join(',') + '\n';
+            const row = [
+                d.doorNumber, d.doorName, d.width, d.height, d.frameDepth, d.dimDetail, d.doorThickness,
+                d.frameProfile1, d.frameProfile2, d.doorLeafFinish, d.doorFrameFinish,
+                d.architraveProfile, d.cylinderProfile, d.suiteRef, d.overrideType, d.handing
+            ];
+            csv += row.map(v => `"${String(v || '').replace(/"/g,'""')}"`).join(',') + '\n';
         });
         const blob = new Blob([csv], { type: 'text/csv' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = `survey-${Date.now()}.csv`;
-        a.click();
-    }
-
-    async function exportWord() {
-        if (typeof window.docx === 'undefined') { alert("Library loading..."); return; }
-        const { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType } = window.docx;
-
-        const tableRows = [
-            new TableRow({
-                children: ["No.", "Name", "W", "H", "Details"].map(h => new TableCell({
-                    children: [new Paragraph({ text: h, bold: true })]
-                }))
-            })
-        ];
-
-        doors.forEach(d => {
-            tableRows.push(new TableRow({
-                children: [d.doorNumber, d.doorName, d.width, d.height, d.dimDetail].map(v => new TableCell({
-                    children: [new Paragraph(v || "-")]
-                }))
-            }));
-        });
-
-        const doc = new Document({
-            sections: [{
-                children: [
-                    new Paragraph({ text: "Door Survey Report", heading: "Title", alignment: AlignmentType.CENTER }),
-                    new Paragraph({ text: `Project: ${document.getElementById('projectName').value || 'N/A'}` }),
-                    new Paragraph({ text: `Surveyor: ${document.getElementById('surveyorName').value || 'N/A'}` }),
-                    new Paragraph({ text: "" }),
-                    new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } })
-                ]
-            }]
-        });
-
-        const blob = await Packer.toBlob(doc);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Door-Survey-${Date.now()}.docx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    }
+
+    async function exportWord() {
+        try {
+            if (!doors || doors.length === 0) { alert('No doors to export'); return; }
+            if (typeof window.docx === 'undefined') {
+                alert("The Word export library is unavailable. Try again after it finishes loading or use the CSV export.");
+                return;
+            }
+
+            const { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType } = window.docx;
+
+            // Build header row
+            const headerCells = ["No.", "Name", "W", "H", "Details"].map(h =>
+                new TableCell({
+                    children: [new Paragraph({ text: h, bold: true })]
+                })
+            );
+
+            const rows = [
+                new TableRow({ children: headerCells })
+            ];
+
+            doors.forEach(d => {
+                const cells = [
+                    d.doorNumber || "-",
+                    d.doorName || "-",
+                    d.width || "-",
+                    d.height || "-",
+                    d.dimDetail || "-"
+                ].map(v => new TableCell({ children: [new Paragraph(String(v))] }));
+                rows.push(new TableRow({ children: cells }));
+            });
+
+            const table = new Table({
+                rows: rows
+            });
+
+            const doc = new Document({
+                sections: [{
+                    children: [
+                        new Paragraph({ text: "Door Survey Report", heading: "Title", alignment: AlignmentType.CENTER }),
+                        new Paragraph({ text: `Project: ${document.getElementById('projectName').value || 'N/A'}` }),
+                        new Paragraph({ text: `Surveyor: ${document.getElementById('surveyorName').value || 'N/A'}` }),
+                        new Paragraph({ text: "" }),
+                        table
+                    ]
+                }]
+            });
+
+            // Generate blob and force download
+            const blob = await Packer.toBlob(doc);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Door-Survey-${Date.now()}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            // revoke after a short delay to ensure download has started
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+        } catch (err) {
+            console.error('Word export failed', err);
+            alert('Failed to export Word document. See console for details.');
+        }
     }
 
     loadData();
