@@ -18,7 +18,7 @@
         input, textarea { width: 100%; padding: 12px; margin: 0; font-size: 16px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fafafa; transition: all 0.2s; }
         input:focus, textarea:focus { outline: none; border-color: #007bff; background: white; }
         textarea { resize: vertical; min-height: 80px; font-family: inherit; }
-        button { width: 100%; padding: 14px; margin-top: 12px; font-size: 16px; font-weight: 600; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; }
+        button { width: 100%; padding: 14px; margin-top: 12px; font-size: 16px; font-weight: 600; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; transition: transform 0.08s ease; }
         button:active { transform: scale(0.98); box-shadow: 0 1px 4px rgba(0,123,255,0.3); }
         button.secondary { background: #6c757d; box-shadow: 0 2px 8px rgba(108,117,125,0.3); }
         button.copy { background: #28a745; box-shadow: 0 2px 8px rgba(40,167,69,0.3); }
@@ -31,7 +31,6 @@
         .door-count { background: #28a745; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; display: inline-block; margin-bottom: 12px; }
         .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
         .install-prompt { background: #fff3cd; border: 2px solid #ffc107; padding: 12px; margin: 12px; border-radius: 8px; display: none; }
-        #pdfStatus { font-size: 13px; color: #444; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -97,40 +96,13 @@
     <div class="button-group">
         <button class="secondary" onclick="exportCSV()">📤 Export CSV</button>
         <div>
-            <button class="secondary" onclick="exportPDF()">📄 Export PDF</button>
-            <div id="pdfStatus" aria-live="polite"></div>
+            <!-- kept layout column for visual balance; PDF removed -->
         </div>
     </div>
     <button class="danger" onclick="clearAllDoors()">🗑️ Clear All Doors</button>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
-
 <script>
-    const pdfStatus = document.getElementById('pdfStatus');
-    function setPdfStatus(msg, isError) {
-        if (!pdfStatus) return;
-        pdfStatus.innerText = msg;
-        pdfStatus.style.color = isError ? '#b2302d' : '#2b7a0b';
-    }
-
-    if (typeof window.html2pdf !== 'undefined') {
-        setPdfStatus('PDF export library loaded ✓');
-    } else {
-        setPdfStatus('PDF export library not available', true);
-        let tries = 0;
-        const checkInterval = setInterval(() => {
-            tries++;
-            if (typeof window.html2pdf !== 'undefined') {
-                setPdfStatus('PDF export library loaded ✓');
-                clearInterval(checkInterval);
-            } else if (tries > 20) {
-                setPdfStatus('PDF library failed to load. Use CSV export or try desktop Safari/Chrome.', true);
-                clearInterval(checkInterval);
-            }
-        }, 500);
-    }
-
     document.getElementById("surveyDate").value = new Date().toISOString().split("T")[0];
     let doors = [];
     let lastDoor = null;
@@ -229,18 +201,41 @@
         Object.keys(lastDoor).forEach(k => { const el = document.getElementById(k); if (el) el.value = lastDoor[k]; });
     }
 
+    function csvEscape(val) {
+        return `"${String(val || '').replace(/"/g, '""')}"`;
+    }
+
     function exportCSV() {
         if (!doors || doors.length === 0) { alert('No doors to export'); return; }
+
+        // Project info header
+        const projectHeader = ["Project Ref", "Project Name", "Survey Date", "Surveyor Name"];
+        const projectValues = [
+            document.getElementById('projectRef').value || '',
+            document.getElementById('projectName').value || '',
+            document.getElementById('surveyDate').value || '',
+            document.getElementById('surveyorName').value || ''
+        ];
+
+        // Door table header
         const header = ["Door Number","Door Name","Width","Height","Frame Depth","Dim Detail","Thickness","Frame1","Frame2","Leaf","Frame Finish","Architrave","Cylinder","Suite","Override","Handing"];
-        let csv = header.join(',') + "\n";
+
+        let csv = '';
+        // Add project info lines
+        csv += projectHeader.map(csvEscape).join(',') + '\n';
+        csv += projectValues.map(csvEscape).join(',') + '\n\n';
+
+        // Add door table
+        csv += header.map(csvEscape).join(',') + "\n";
         doors.forEach(d => {
             const row = [
                 d.doorNumber, d.doorName, d.width, d.height, d.frameDepth, d.dimDetail, d.doorThickness,
                 d.frameProfile1, d.frameProfile2, d.doorLeafFinish, d.doorFrameFinish,
                 d.architraveProfile, d.cylinderProfile, d.suiteRef, d.overrideType, d.handing
             ];
-            csv += row.map(v => `"${String(v || '').replace(/"/g,'""')}"`).join(',') + '\n';
+            csv += row.map(v => csvEscape(v)).join(',') + '\n';
         });
+
         const blob = new Blob([csv], { type: 'text/csv' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -249,99 +244,6 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(a.href);
-    }
-
-    async function exportPDF() {
-        try {
-            if (!doors || doors.length === 0) { alert('No doors to export'); return; }
-            if (typeof window.html2pdf === 'undefined') {
-                alert("The PDF export library is still loading or unavailable. Try again in a moment or use the CSV export.");
-                return;
-            }
-
-            // Create printable container that is off-screen but renderable (do NOT use visibility:hidden)
-            const container = document.createElement('div');
-            container.style.padding = '12px';
-            container.style.background = 'white';
-            container.style.color = '#000';
-            container.style.fontFamily = 'Arial, Helvetica, sans-serif';
-            container.style.width = '800px'; // explicit width helps rendering
-            container.style.boxSizing = 'border-box';
-
-            // Important: Move element off-screen and make it invisible but renderable
-            container.style.position = 'absolute';
-            container.style.left = '-10000px';
-            container.style.top = '0';
-            container.style.opacity = '0';
-            container.style.pointerEvents = 'none';
-            container.style.zIndex = '9999';
-
-            const projName = document.getElementById('projectName').value || 'N/A';
-            const projRef = document.getElementById('projectRef').value || '';
-            const surveyDate = document.getElementById('surveyDate').value || '';
-            const surveyor = document.getElementById('surveyorName').value || 'N/A';
-
-            const headerHtml = `
-                <div style="text-align:center">
-                    <h1 style="margin:0 0 8px 0">Door Survey Report</h1>
-                    <p style="margin:0 0 12px 0"><strong>Project:</strong> ${escapeHtml(projName)} ${projRef ? '— ' + escapeHtml(projRef) : ''}</p>
-                    <p style="margin:0 0 12px 0"><strong>Surveyor:</strong> ${escapeHtml(surveyor)} ${surveyDate ? ' | ' + escapeHtml(surveyDate) : ''}</p>
-                </div>
-            `;
-            container.innerHTML = headerHtml;
-
-            // Build table HTML
-            let tableHtml = '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">';
-            tableHtml += '<thead><tr>';
-            const cols = ["Door No.","Door Name","Width","Height","Frame Depth","Dim Detail","Thickness","Frame1","Frame2","Leaf Finish","Frame Finish","Architrave","Cylinder","Suite Ref","Override","Handing"];
-            cols.forEach(c => {
-                tableHtml += `<th style="border:1px solid #333;padding:6px;background:#eee;text-align:left">${escapeHtml(c)}</th>`;
-            });
-            tableHtml += '</tr></thead><tbody>';
-            doors.forEach(d => {
-                tableHtml += '<tr>';
-                const vals = [
-                    d.doorNumber, d.doorName, d.width, d.height, d.frameDepth, d.dimDetail, d.doorThickness,
-                    d.frameProfile1, d.frameProfile2, d.doorLeafFinish, d.doorFrameFinish,
-                    d.architraveProfile, d.cylinderProfile, d.suiteRef, d.overrideType, d.handing
-                ];
-                vals.forEach(v => {
-                    tableHtml += `<td style="border:1px solid #333;padding:6px;vertical-align:top">${escapeHtml(v || '-')}</td>`;
-                });
-                tableHtml += '</tr>';
-            });
-            tableHtml += '</tbody></table>';
-
-            container.innerHTML += tableHtml;
-
-            document.body.appendChild(container);
-
-            // allow a short time for layout/render before capture
-            // increased delay to improve reliability on slower devices
-            await new Promise(res => setTimeout(res, 300));
-
-            const opt = {
-                margin:       0.4,
-                filename:     `Door-Survey-${Date.now()}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-            };
-
-            await html2pdf().set(opt).from(container).save();
-
-            // cleanup
-            if (container && container.parentNode) document.body.removeChild(container);
-        } catch (err) {
-            console.error('PDF export failed', err);
-            alert('Failed to export PDF. See console for details.');
-        }
-    }
-
-    function escapeHtml(str) {
-        return String(str || '').replace(/[&<>"']/g, function (m) {
-            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
-        });
     }
 
     loadData();
