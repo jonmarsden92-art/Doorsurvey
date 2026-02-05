@@ -285,10 +285,11 @@
         return `"${String(val || '').replace(/"/g, '""')}"`;
     }
 
+    // CSV export: project block (labels + values) on top, then door table with full headings
     function exportCSV() {
         if (!doors || doors.length === 0) { alert('No doors to export'); return; }
 
-        // Project info header
+        // Project info header and values (separate block)
         const projectHeader = ["Project Ref", "Project Name", "Survey Date", "Surveyor Name"];
         const projectValues = [
             document.getElementById('projectRef').value || '',
@@ -297,16 +298,16 @@
             document.getElementById('surveyorName').value || ''
         ];
 
-        // Door table header
-        const header = ["Door Number","Door Name","Width","Height","Frame Depth","Dim Detail","Thickness","Frame1","Frame2","Leaf","Frame Finish","Architrave","Cylinder","Suite","Override","Handing","ImagesCount"];
+        // Door table header (full set of headings)
+        const doorHeader = ["Door Number","Door Name","Width","Height","Frame Depth","Dim Detail","Thickness","Frame1","Frame2","Leaf","Frame Finish","Architrave","Cylinder","Suite","Override","Handing","ImagesCount"];
 
         let csv = '';
-        // Add project info lines
+        // Add project info block (labels row + values row), separated from door table by a blank line
         csv += projectHeader.map(csvEscape).join(',') + '\n';
         csv += projectValues.map(csvEscape).join(',') + '\n\n';
 
-        // Add door table
-        csv += header.map(csvEscape).join(',') + "\n";
+        // Add door header and rows
+        csv += doorHeader.map(csvEscape).join(',') + "\n";
         doors.forEach(d => {
             const row = [
                 d.doorNumber, d.doorName, d.width, d.height, d.frameDepth, d.dimDetail, d.doorThickness,
@@ -377,7 +378,7 @@
         if (!doors || doors.length === 0) { alert('No doors to export'); return; }
         const zip = new JSZip();
 
-        // Prepare CSV as string (same as exportCSV content)
+        // Project info header and values (separate block in CSV)
         const projectHeader = ["Project Ref", "Project Name", "Survey Date", "Surveyor Name"];
         const projectValues = [
             document.getElementById('projectRef').value || '',
@@ -385,11 +386,14 @@
             document.getElementById('surveyDate').value || '',
             document.getElementById('surveyorName').value || ''
         ];
-        const header = ["Door Number","Door Name","Width","Height","Frame Depth","Dim Detail","Thickness","Frame1","Frame2","Leaf","Frame Finish","Architrave","Cylinder","Suite","Override","Handing","ImagesCount"];
+
+        // Door table header (full set of headings)
+        const doorHeader = ["Door Number","Door Name","Width","Height","Frame Depth","Dim Detail","Thickness","Frame1","Frame2","Leaf","Frame Finish","Architrave","Cylinder","Suite","Override","Handing","ImagesCount"];
+
         let csv = '';
         csv += projectHeader.map(csvEscape).join(',') + '\n';
         csv += projectValues.map(csvEscape).join(',') + '\n\n';
-        csv += header.map(csvEscape).join(',') + "\n";
+        csv += doorHeader.map(csvEscape).join(',') + "\n";
         doors.forEach(d => {
             const row = [
                 d.doorNumber, d.doorName, d.width, d.height, d.frameDepth, d.dimDetail, d.doorThickness,
