@@ -11,12 +11,12 @@
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; padding-bottom: 20px; -webkit-font-smoothing: antialiased; }
-        h1 { background: #007bff; color: white; margin: 0; padding: 16px; font-size: 22px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { background: #007bff; color: white; margin: 0; padding: 16px; font-size: 22px; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         h2 { margin: 0 0 16px 0; font-size: 18px; color: #333; }
         .section { background: #fff; padding: 16px; margin: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
         label { display: block; margin-top: 12px; margin-bottom: 4px; font-weight: 600; font-size: 14px; color: #555; }
-        input, textarea { width: 100%; padding: 12px; margin: 0; font-size: 16px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fafafa; transition: all 0.2s; }
-        input:focus, textarea:focus { outline: none; border-color: #007bff; background: white; }
+        input, textarea, select { width: 100%; padding: 12px; margin: 0; font-size: 16px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fafafa; transition: all 0.2s; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: #007bff; background: white; }
         textarea { resize: vertical; min-height: 80px; font-family: inherit; }
         button { width: 100%; padding: 14px; margin-top: 12px; font-size: 16px; font-weight: 600; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; transition: transform 0.08s, box-shadow 0.08s; }
         button:active { transform: scale(0.98); box-shadow: 0 1px 4px rgba(0,123,255,0.3); }
@@ -38,8 +38,17 @@
         .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
         .image-card { background: #f8f9fa; border-radius: 8px; padding: 8px; text-align: center; }
         .small-btn { padding: 6px 8px; font-size: 13px; border-radius: 8px; width: auto; display:inline-block; margin-top: 6px; }
+        /* Mapping modal */
+        #mappingModal { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 9998; padding: 12px; }
+        #mappingModal .modal-content { background: white; border-radius: 10px; width: 960px; max-width: 98%; max-height: 92vh; overflow: auto; padding: 16px; }
+        .mapping-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+        .mapping-row input[type="text"] { flex:1; }
+        .mapping-row .small { width:58px; }
+        .mapping-controls { display:flex; gap:8px; }
         @media (max-width: 520px) {
             table { min-width: 720px; }
+            .mapping-row { flex-direction: column; align-items: stretch; }
+            .mapping-row .small { width:100%; }
         }
     </style>
 </head>
@@ -64,7 +73,10 @@
 
 <div class="section">
     <h2>Add Door</h2>
-    <button class="copy" onclick="copyPrevious()">🔁 Copy Previous Door Details</button>
+    <div style="display:flex; gap:8px;">
+        <div style="flex:1"><button class="copy" onclick="copyPrevious()">🔁 Copy Previous Door Details</button></div>
+        <div style="flex:1"><button class="secondary" onclick="openMappingModal()">⚙️ Customize Fields</button></div>
+    </div>
 
     <label>Door Number</label><input id="doorNumber" type="text" placeholder="e.g., D01">
     <label>Door Name</label><input id="doorName" type="text" placeholder="e.g., Main Entrance">
@@ -82,6 +94,8 @@
     <label>Existing Suite Ref</label><input id="suiteRef" type="text">
     <label>Existing Override Type</label><input id="overrideType" type="text">
     <label>Handing</label><input id="handing" type="text" placeholder="e.g., LH or RH">
+
+    <div id="customFieldsContainer"><!-- custom fields injected here --></div>
 
     <label>Attach Images</label>
     <input id="imagesInput" type="file" accept="image/*" multiple>
@@ -126,14 +140,58 @@
     </div>
 </div>
 
+<!-- Mapping modal -->
+<div id="mappingModal" onclick="if(event.target.id==='mappingModal') closeMappingModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="margin:0">Customize CSV Fields</h3>
+            <div style="display:flex; gap:8px;">
+                <button class="secondary" onclick="resetMappingToDefaults()">Reset to Defaults</button>
+                <button onclick="closeMappingModal()" style="background:#dc3545;">Close</button>
+            </div>
+        </div>
+
+        <div id="mappingList"></div>
+
+        <div style="display:flex; gap:8px; margin-top:12px;">
+            <input id="newFieldLabel" placeholder="New field label (e.g. Room No)" style="flex:1; padding:10px;">
+            <button class="copy" onclick="addCustomField()">Add Custom Field</button>
+        </div>
+        <p style="margin-top:8px; color:#666;">Built-in fields cannot be deleted but can be hidden by toggling Include. Custom fields will appear on the Add Door form.</p>
+    </div>
+</div>
+
 <!-- JSZip library for zipping files -->
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
 <script>
+    // --- state ---
     document.getElementById("surveyDate").value = new Date().toISOString().split("T")[0];
     let doors = [];
     let lastDoor = null;
     let deferredPrompt;
+
+    // mapping entries: { id, label, include, type: 'field'|'custom' }
+    const DEFAULT_MAPPING = [
+        { id: 'doorNumber', label: 'Door Number', include: true, type: 'field' },
+        { id: 'doorName', label: 'Door Name', include: true, type: 'field' },
+        { id: 'width', label: 'Width', include: true, type: 'field' },
+        { id: 'height', label: 'Height', include: true, type: 'field' },
+        { id: 'frameDepth', label: 'Frame Depth', include: true, type: 'field' },
+        { id: 'dimDetail', label: 'Dimension Detail', include: true, type: 'field' },
+        { id: 'doorThickness', label: 'Existing Door Thickness', include: true, type: 'field' },
+        { id: 'frameProfile1', label: 'Existing Frame Profile 1', include: true, type: 'field' },
+        { id: 'frameProfile2', label: 'Existing Frame Profile 2', include: true, type: 'field' },
+        { id: 'doorLeafFinish', label: 'Door Leaf Finish', include: true, type: 'field' },
+        { id: 'doorFrameFinish', label: 'Door Frame Finish', include: true, type: 'field' },
+        { id: 'architraveProfile', label: 'Existing Architrave Profile', include: true, type: 'field' },
+        { id: 'cylinderProfile', label: 'Existing Cylinder Profile', include: true, type: 'field' },
+        { id: 'suiteRef', label: 'Existing Suite Ref', include: true, type: 'field' },
+        { id: 'overrideType', label: 'Existing Override Type', include: true, type: 'field' },
+        { id: 'handing', label: 'Handing', include: true, type: 'field' },
+        // ImagesCount is automatically supplied — keep available but allow hide/show
+        { id: 'imagesCount', label: 'ImagesCount', include: true, type: 'field' }
+    ];
 
     function loadData() {
         try {
@@ -145,7 +203,6 @@
                 document.getElementById('surveyDate').value = data.surveyDate || '';
                 document.getElementById('surveyorName').value = data.surveyorName || '';
                 doors = data.doors || [];
-                // set lastDoor from last entry (excluding number & name)
                 if (doors.length) {
                     const ld = Object.assign({}, doors[doors.length - 1]);
                     delete ld.doorNumber; delete ld.doorName;
@@ -166,15 +223,50 @@
         };
         try {
             localStorage.setItem('doorSurveyData', JSON.stringify(data));
-        } catch (e) {
-            console.warn('Could not save data to localStorage', e);
-        }
+        } catch (e) { console.warn('Could not save data to localStorage', e); }
     }
 
     ['projectRef', 'projectName', 'surveyDate', 'surveyorName'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', saveData);
     });
+
+    // mapping persistence
+    function loadMapping() {
+        try {
+            const raw = localStorage.getItem('doorSurveyMapping');
+            if (raw) return JSON.parse(raw);
+        } catch (e) { console.warn('Error loading mapping', e); }
+        return JSON.parse(JSON.stringify(DEFAULT_MAPPING));
+    }
+    function saveMapping(mapping) {
+        try {
+            localStorage.setItem('doorSurveyMapping', JSON.stringify(mapping));
+        } catch (e) { console.warn('Error saving mapping', e); }
+    }
+
+    let mapping = loadMapping();
+
+    // render custom fields in the Add Door form based on mapping entries with type 'custom'
+    function renderCustomFields() {
+        const container = document.getElementById('customFieldsContainer');
+        container.innerHTML = '';
+        mapping.forEach(m => {
+            if (m.type === 'custom') {
+                const id = `custom_${m.id}`;
+                const label = document.createElement('label');
+                label.innerText = m.label;
+                label.htmlFor = id;
+                const input = document.createElement('input');
+                input.id = id;
+                input.type = 'text';
+                input.placeholder = m.label;
+                input.style.marginTop = '4px';
+                container.appendChild(label);
+                container.appendChild(input);
+            }
+        });
+    }
 
     async function readFilesAsDataURLs(fileList) {
         const files = Array.from(fileList || []);
@@ -200,6 +292,15 @@
             alert('Error reading selected images.');
         }
 
+        // collect custom fields values
+        const customFields = {};
+        mapping.forEach(m => {
+            if (m.type === 'custom') {
+                const el = document.getElementById(`custom_${m.id}`);
+                customFields[m.id] = el ? el.value : '';
+            }
+        });
+
         const doorData = {
             doorNumber: dNo,
             doorName: document.getElementById('doorName').value,
@@ -217,18 +318,20 @@
             suiteRef: document.getElementById('suiteRef').value,
             overrideType: document.getElementById('overrideType').value,
             handing: document.getElementById('handing').value,
-            images: images // array of {name, dataUrl}
+            images: images, // array of {name, dataUrl}
+            customFields: customFields
         };
         lastDoor = { ...doorData };
-        delete lastDoor.doorNumber;
-        delete lastDoor.doorName;
+        delete lastDoor.doorNumber; delete lastDoor.doorName;
         doors.push(doorData);
         refreshTable();
         saveData();
+        // clear basic fields
         document.getElementById('doorNumber').value = '';
         document.getElementById('doorName').value = '';
-        // clear file input
         document.getElementById('imagesInput').value = '';
+        // clear custom inputs
+        mapping.forEach(m => { if (m.type === 'custom') { const el = document.getElementById(`custom_${m.id}`); if (el) el.value = ''; } });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -279,17 +382,24 @@
     function copyPrevious() {
         if (!lastDoor) { alert('No data to copy'); return; }
         Object.keys(lastDoor).forEach(k => { const el = document.getElementById(k); if (el) el.value = lastDoor[k]; });
+        // copy custom fields too
+        mapping.forEach(m => {
+            if (m.type === 'custom') {
+                const el = document.getElementById(`custom_${m.id}`);
+                if (el && lastDoor.customFields) el.value = lastDoor.customFields[m.id] || '';
+            }
+        });
     }
 
     function csvEscape(val) {
         return `"${String(val || '').replace(/"/g, '""')}"`;
     }
 
-    // CSV export: project block (labels + values) on top, then door table with full headings
+    // Build CSV using mapping ordering and include flags, project block separate
     function exportCSV() {
         if (!doors || doors.length === 0) { alert('No doors to export'); return; }
 
-        // Project info header and values (separate block)
+        // Project block
         const projectHeader = ["Project Ref", "Project Name", "Survey Date", "Surveyor Name"];
         const projectValues = [
             document.getElementById('projectRef').value || '',
@@ -298,23 +408,28 @@
             document.getElementById('surveyorName').value || ''
         ];
 
-        // Door table header (full set of headings)
-        const doorHeader = ["Door Number","Door Name","Width","Height","Frame Depth","Dim Detail","Thickness","Frame1","Frame2","Leaf","Frame Finish","Architrave","Cylinder","Suite","Override","Handing","ImagesCount"];
+        // Determine active mapping entries (in order)
+        const active = mapping.filter(m => m.include);
+
+        // Compose header row from active mapping labels
+        const doorHeader = active.map(m => m.label);
 
         let csv = '';
-        // Add project info block (labels row + values row), separated from door table by a blank line
         csv += projectHeader.map(csvEscape).join(',') + '\n';
         csv += projectValues.map(csvEscape).join(',') + '\n\n';
+        csv += doorHeader.map(csvEscape).join(',') + '\n';
 
-        // Add door header and rows
-        csv += doorHeader.map(csvEscape).join(',') + "\n";
+        // rows
         doors.forEach(d => {
-            const row = [
-                d.doorNumber, d.doorName, d.width, d.height, d.frameDepth, d.dimDetail, d.doorThickness,
-                d.frameProfile1, d.frameProfile2, d.doorLeafFinish, d.doorFrameFinish,
-                d.architraveProfile, d.cylinderProfile, d.suiteRef, d.overrideType, d.handing,
-                (d.images && d.images.length) ? d.images.length : 0
-            ];
+            const row = active.map(m => {
+                if (m.type === 'field') {
+                    if (m.id === 'imagesCount') return (d.images && d.images.length) ? d.images.length : 0;
+                    return d[m.id] !== undefined ? d[m.id] : '';
+                } else if (m.type === 'custom') {
+                    return (d.customFields && d.customFields[m.id]) ? d.customFields[m.id] : '';
+                }
+                return '';
+            });
             csv += row.map(v => csvEscape(v)).join(',') + '\n';
         });
 
@@ -350,7 +465,6 @@
                 const img = door.images[j];
                 try {
                     const ab = await dataUrlToArrayBuffer(img.dataUrl);
-                    // try to keep original filename if present, otherwise create a name
                     const filename = sanitizeFilename(img.name || `image-${j+1}.jpg`);
                     folder.file(filename, ab);
                 } catch (e) {
@@ -373,12 +487,12 @@
         });
     }
 
-    // Export both CSV and Images together in one ZIP
+    // Export both CSV and Images together in one ZIP; CSV uses mapping
     async function exportAll() {
         if (!doors || doors.length === 0) { alert('No doors to export'); return; }
         const zip = new JSZip();
 
-        // Project info header and values (separate block in CSV)
+        // Project block
         const projectHeader = ["Project Ref", "Project Name", "Survey Date", "Surveyor Name"];
         const projectValues = [
             document.getElementById('projectRef').value || '',
@@ -387,26 +501,30 @@
             document.getElementById('surveyorName').value || ''
         ];
 
-        // Door table header (full set of headings)
-        const doorHeader = ["Door Number","Door Name","Width","Height","Frame Depth","Dim Detail","Thickness","Frame1","Frame2","Leaf","Frame Finish","Architrave","Cylinder","Suite","Override","Handing","ImagesCount"];
+        const active = mapping.filter(m => m.include);
+        const doorHeader = active.map(m => m.label);
 
         let csv = '';
         csv += projectHeader.map(csvEscape).join(',') + '\n';
         csv += projectValues.map(csvEscape).join(',') + '\n\n';
-        csv += doorHeader.map(csvEscape).join(',') + "\n";
+        csv += doorHeader.map(csvEscape).join(',') + '\n';
+
         doors.forEach(d => {
-            const row = [
-                d.doorNumber, d.doorName, d.width, d.height, d.frameDepth, d.dimDetail, d.doorThickness,
-                d.frameProfile1, d.frameProfile2, d.doorLeafFinish, d.doorFrameFinish,
-                d.architraveProfile, d.cylinderProfile, d.suiteRef, d.overrideType, d.handing,
-                (d.images && d.images.length) ? d.images.length : 0
-            ];
+            const row = active.map(m => {
+                if (m.type === 'field') {
+                    if (m.id === 'imagesCount') return (d.images && d.images.length) ? d.images.length : 0;
+                    return d[m.id] !== undefined ? d[m.id] : '';
+                } else if (m.type === 'custom') {
+                    return (d.customFields && d.customFields[m.id]) ? d.customFields[m.id] : '';
+                }
+                return '';
+            });
             csv += row.map(v => csvEscape(v)).join(',') + '\n';
         });
 
         zip.file('survey.csv', csv);
 
-        // Add images in a folder "images/<doorNumber>/"
+        // Add images
         let anyImage = false;
         for (let i = 0; i < doors.length; i++) {
             const door = doors[i];
@@ -498,8 +616,125 @@
         if (event.target.id === 'imageModal') closeImageModal();
     }
 
+    // --- Mapping modal UI ---
+    function openMappingModal() {
+        renderMappingList();
+        document.getElementById('mappingModal').style.display = 'flex';
+    }
+    function closeMappingModal() {
+        // save mapping and re-render custom fields
+        saveMapping(mapping);
+        renderCustomFields();
+        document.getElementById('mappingModal').style.display = 'none';
+    }
+
+    function renderMappingList() {
+        const list = document.getElementById('mappingList');
+        list.innerHTML = '';
+        mapping.forEach((m, idx) => {
+            const row = document.createElement('div');
+            row.className = 'mapping-row';
+            // include checkbox
+            const incl = document.createElement('input');
+            incl.type = 'checkbox';
+            incl.checked = !!m.include;
+            incl.title = 'Include in CSV';
+            incl.onclick = () => { m.include = incl.checked; };
+            row.appendChild(incl);
+
+            // label input
+            const labelIn = document.createElement('input');
+            labelIn.type = 'text';
+            labelIn.value = m.label;
+            labelIn.oninput = () => { m.label = labelIn.value; };
+            row.appendChild(labelIn);
+
+            // id display
+            const idDisplay = document.createElement('div');
+            idDisplay.style.width = '140px';
+            idDisplay.style.fontSize = '13px';
+            idDisplay.style.color = '#333';
+            idDisplay.style.padding = '6px';
+            idDisplay.style.background = '#f1f1f1';
+            idDisplay.style.borderRadius = '6px';
+            idDisplay.innerText = m.id + (m.type === 'custom' ? ' (custom)' : '');
+            row.appendChild(idDisplay);
+
+            // controls
+            const controls = document.createElement('div');
+            controls.className = 'mapping-controls';
+
+            const up = document.createElement('button');
+            up.className = 'secondary';
+            up.style.minWidth = '48px';
+            up.innerText = '↑';
+            up.onclick = () => { if (idx > 0) { const tmp = mapping[idx-1]; mapping[idx-1] = mapping[idx]; mapping[idx] = tmp; renderMappingList(); } };
+            controls.appendChild(up);
+
+            const down = document.createElement('button');
+            down.className = 'secondary';
+            down.style.minWidth = '48px';
+            down.innerText = '↓';
+            down.onclick = () => { if (idx < mapping.length - 1) { const tmp = mapping[idx+1]; mapping[idx+1] = mapping[idx]; mapping[idx] = tmp; renderMappingList(); } };
+            controls.appendChild(down);
+
+            if (m.type === 'custom') {
+                const del = document.createElement('button');
+                del.className = 'danger';
+                del.style.minWidth = '80px';
+                del.innerText = 'Delete';
+                del.onclick = () => {
+                    if (!confirm('Delete this custom field? It will be removed from existing entries.')) return;
+                    mapping.splice(idx, 1);
+                    // remove custom values from stored doors
+                    doors.forEach(d => { if (d.customFields) delete d.customFields[m.id]; });
+                    renderMappingList();
+                };
+                controls.appendChild(del);
+            } else {
+                const note = document.createElement('div');
+                note.style.fontSize = '12px';
+                note.style.padding = '6px';
+                note.style.color = '#666';
+                note.innerText = 'builtin';
+                controls.appendChild(note);
+            }
+
+            row.appendChild(controls);
+            list.appendChild(row);
+        });
+    }
+
+    function addCustomField() {
+        const label = document.getElementById('newFieldLabel').value.trim();
+        if (!label) { alert('Enter a label for the new field'); return; }
+        // create id from label
+        const base = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        let id = base || 'custom';
+        let counter = 1;
+        while (mapping.some(m => m.id === id)) { id = `${base || 'custom'}_${counter++}`; }
+        const entry = { id: id, label: label, include: true, type: 'custom' };
+        mapping.push(entry);
+        document.getElementById('newFieldLabel').value = '';
+        renderMappingList();
+    }
+
+    function resetMappingToDefaults() {
+        if (!confirm('Reset mapping to defaults? This will remove custom fields.')) return;
+        mapping = JSON.parse(JSON.stringify(DEFAULT_MAPPING));
+        saveMapping(mapping);
+        // remove custom data fields from doors
+        doors.forEach(d => { if (d.customFields) d.customFields = {}; });
+        renderMappingList();
+        renderCustomFields();
+        saveData();
+    }
+
+    // initial render
+    renderCustomFields();
     loadData();
 
+    // install prompt
     window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('installPrompt').style.display = 'block'; });
     function installApp() { if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; document.getElementById('installPrompt').style.display = 'none'; } }
 </script>
