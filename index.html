@@ -18,7 +18,7 @@
         input, textarea, select { width: 100%; padding: 12px; margin: 0; font-size: 16px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fafafa; transition: all 0.2s; }
         input:focus, textarea:focus, select:focus { outline: none; border-color: #007bff; background: white; }
         textarea { resize: vertical; min-height: 80px; font-family: inherit; }
-        button { width: 100%; padding: 14px; margin-top: 12px; font-size: 16px; font-weight: 600; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; transition: transform 0.08s, box-shadow 0.08s; }
+        button { width: 100%; padding: 14px; margin-top: 12px; font-size: 16px; font-weight: 600; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; transition: transform 0.08s ease; }
         button:active { transform: scale(0.98); box-shadow: 0 1px 4px rgba(0,123,255,0.3); }
         button.secondary { background: #6c757d; box-shadow: 0 2px 8px rgba(108,117,125,0.3); }
         button.copy { background: #28a745; box-shadow: 0 2px 8px rgba(40,167,69,0.3); }
@@ -50,6 +50,9 @@
             .mapping-row { flex-direction: column; align-items: stretch; }
             .mapping-row .small { width:100%; }
         }
+        /* simple signature UI */
+        #signaturePreview { display:block; max-width: 300px; margin-top: 8px; border-radius: 6px; border: 1px solid #ddd; }
+        .inline { display:inline-block; width:auto; }
     </style>
 </head>
 <body>
@@ -67,6 +70,8 @@
     <h2>Project Information</h2>
     <label>Project Ref</label><input id="projectRef">
     <label>Project Name</label><input id="projectName">
+    <label>Site Name</label><input id="siteName">
+    <label>Ward Name</label><input id="wardName">
     <label>Survey Date</label><input id="surveyDate" type="date">
     <label>Surveyor Name</label><input id="surveyorName">
 </div>
@@ -83,17 +88,37 @@
     <label>Width (mm)</label><input id="width" type="number">
     <label>Height (mm)</label><input id="height" type="number">
     <label>Frame Depth</label><input id="frameDepth" type="text">
-    <label>Dimension Detail</label><textarea id="dimDetail"></textarea>
+    <label>Dimension Detail</label>
+    <select id="dimDetail">
+        <option value="">-- Select --</option>
+        <option value="IFD">IFD</option>
+        <option value="OFD">OFD</option>
+        <option value="S/O">S/O</option>
+    </select>
+
     <label>Existing Door Thickness</label><input id="doorThickness" type="text">
-    <label>Existing Frame Profile 1</label><input id="frameProfile1" type="text">
-    <label>Existing Frame Profile 2</label><input id="frameProfile2" type="text">
-    <label>Door Leaf Finish</label><input id="doorLeafFinish" type="text">
-    <label>Door Frame Finish</label><input id="doorFrameFinish" type="text">
+    <label>Existing Frame Profile – Legs</label><input id="frameProfile1" type="text">
+    <label>Existing Frame Profile – Head</label><input id="frameProfile2" type="text">
+    <label>Existing Door Leaf Finish</label><input id="doorLeafFinish" type="text">
+    <label>Existing Door Frame Finish</label><input id="doorFrameFinish" type="text">
     <label>Existing Architrave Profile</label><input id="architraveProfile" type="text">
+    <label>Existing Architrave Finish</label><input id="architraveFinish" type="text">
     <label>Existing Cylinder Profile</label><input id="cylinderProfile" type="text">
     <label>Existing Suite Ref</label><input id="suiteRef" type="text">
     <label>Existing Override Type</label><input id="overrideType" type="text">
-    <label>Handing</label><input id="handing" type="text" placeholder="e.g., LH or RH">
+    <label>Handing</label>
+    <select id="handing">
+        <option value="">-- Select --</option>
+        <option>RH In</option>
+        <option>LH In</option>
+        <option>RH Out</option>
+        <option>LH Out</option>
+        <option>ML LH in</option>
+        <option>ML RH out</option>
+        <option>ML LH Out</option>
+        <option>ML RH In</option>
+        <option>Other</option>
+    </select>
 
     <div id="customFieldsContainer"><!-- custom fields injected here --></div>
 
@@ -113,7 +138,7 @@
                 <tr>
                     <th>Door No.</th><th>Door Name</th><th>Width</th><th>Height</th><th>Frame Depth</th>
                     <th>Dim Detail</th><th>Thickness</th><th>Frame 1</th><th>Frame 2</th>
-                    <th>Leaf Finish</th><th>Frame Finish</th><th>Architrave</th><th>Cylinder</th>
+                    <th>Leaf Finish</th><th>Frame Finish</th><th>Architrave</th><th>Architrave Finish</th><th>Cylinder</th>
                     <th>Suite Ref</th><th>Override</th><th>Handing</th><th>Images</th><th>Action</th>
                 </tr>
             </thead>
@@ -127,6 +152,49 @@
     </div>
     <button class="copy" onclick="exportAll()">📦 Export CSV + Images (ZIP)</button>
     <button class="danger" onclick="clearAllDoors()">🗑️ Clear All Doors</button>
+</div>
+
+<!-- Additional survey sections (separate from per-door data) -->
+<div class="section">
+    <h2>Survey Notes (separate)</h2>
+    <label>Notes for PC</label>
+    <textarea id="notesPC" placeholder="Notes for PC..."></textarea>
+    <label>Notes for Projects</label>
+    <textarea id="notesProject" placeholder="Notes for projects..."></textarea>
+</div>
+
+<div class="section">
+    <h2>Intrusive Survey (separate)</h2>
+    <label>Intrusive Survey undertaken</label>
+    <div style="display:flex; gap:8px;">
+        <label style="flex:1"><input type="radio" name="intrusiveSurvey" id="intrusive_yes" value="Yes"> Yes</label>
+        <label style="flex:1"><input type="radio" name="intrusiveSurvey" id="intrusive_no" value="No" checked> No</label>
+    </div>
+
+    <label>Doorset made safe</label>
+    <div style="display:flex; gap:8px;">
+        <label style="flex:1"><input type="radio" name="doorsetMadeSafe" id="madeSafe_yes" value="Yes"> Yes</label>
+        <label style="flex:1"><input type="radio" name="doorsetMadeSafe" id="madeSafe_no" value="No" checked> No</label>
+    </div>
+
+    <label>Intrusive survey damage details</label>
+    <textarea id="intrusiveComments" placeholder="Describe any damage..."></textarea>
+    <label>Attach Intrusive Survey Images</label>
+    <input id="intrusiveImagesInput" type="file" accept="image/*" multiple>
+    <small style="color:#666; display:block; margin-top:6px;">Images here are part of the intrusive survey and are exported separately.</small>
+</div>
+
+<div class="section">
+    <h2>Customer</h2>
+    <label>Customer Name</label>
+    <input id="customerName" placeholder="Customer name">
+    <label>Customer Signature</label>
+    <canvas id="signaturePad" width="600" height="150" style="border:1px solid #ddd; border-radius:6px; touch-action: none;"></canvas>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+        <button type="button" onclick="clearSignature()" class="secondary" style="width:auto; padding:10px 12px;">Clear Signature</button>
+        <button type="button" onclick="saveSignature()" class="copy" style="width:auto; padding:10px 12px;">Save Signature</button>
+    </div>
+    <img id="signaturePreview" alt="Saved signature preview" style="display:none;">
 </div>
 
 <!-- Image preview modal -->
@@ -170,6 +238,7 @@
     let doors = [];
     let lastDoor = null;
     let deferredPrompt;
+    let customerSignatureDataUrl = '';
 
     // mapping entries: { id, label, include, type: 'field'|'custom' }
     const DEFAULT_MAPPING = [
@@ -200,8 +269,30 @@
                 const data = JSON.parse(saved);
                 document.getElementById('projectRef').value = data.projectRef || '';
                 document.getElementById('projectName').value = data.projectName || '';
+                document.getElementById('siteName').value = data.siteName || '';
+                document.getElementById('wardName').value = data.wardName || '';
                 document.getElementById('surveyDate').value = data.surveyDate || '';
                 document.getElementById('surveyorName').value = data.surveyorName || '';
+                // extra survey fields
+                document.getElementById('notesPC').value = (data.surveyExtras && data.surveyExtras.notesPC) || '';
+                document.getElementById('notesProject').value = (data.surveyExtras && data.surveyExtras.notesProject) || '';
+                // intrusive radios
+                const intrusive = (data.surveyExtras && data.surveyExtras.intrusiveSurvey) || 'No';
+                if (intrusive === 'Yes') document.getElementById('intrusive_yes').checked = true;
+                else document.getElementById('intrusive_no').checked = true;
+                const madeSafe = (data.surveyExtras && data.surveyExtras.doorsetMadeSafe) || 'No';
+                if (madeSafe === 'Yes') document.getElementById('madeSafe_yes').checked = true;
+                else document.getElementById('madeSafe_no').checked = true;
+                document.getElementById('intrusiveComments').value = (data.surveyExtras && data.surveyExtras.intrusiveComments) || '';
+                // intrusive images not pre-filled into file inputs (browsers restrict that), but stored
+                // customer
+                document.getElementById('customerName').value = data.customerName || '';
+                customerSignatureDataUrl = data.customerSignature || '';
+                if (customerSignatureDataUrl) {
+                    const prev = document.getElementById('signaturePreview');
+                    prev.src = customerSignatureDataUrl;
+                    prev.style.display = 'block';
+                }
                 doors = data.doors || [];
                 if (doors.length) {
                     const ld = Object.assign({}, doors[doors.length - 1]);
@@ -214,22 +305,39 @@
     }
 
     function saveData() {
+        const surveyExtras = {
+            notesPC: document.getElementById('notesPC').value || '',
+            notesProject: document.getElementById('notesProject').value || '',
+            intrusiveSurvey: document.querySelector('input[name="intrusiveSurvey"]:checked') ? document.querySelector('input[name="intrusiveSurvey"]:checked').value : 'No',
+            doorsetMadeSafe: document.querySelector('input[name="doorsetMadeSafe"]:checked') ? document.querySelector('input[name="doorsetMadeSafe"]:checked').value : 'No',
+            intrusiveComments: document.getElementById('intrusiveComments').value || '',
+            intrusiveImages: (window._intrusiveImages || []) // array of {name, dataUrl}
+        };
+
         const data = {
             projectRef: document.getElementById('projectRef').value,
             projectName: document.getElementById('projectName').value,
+            siteName: document.getElementById('siteName').value,
+            wardName: document.getElementById('wardName').value,
             surveyDate: document.getElementById('surveyDate').value,
             surveyorName: document.getElementById('surveyorName').value,
-            doors: doors
+            doors: doors,
+            surveyExtras: surveyExtras,
+            customerName: document.getElementById('customerName').value || '',
+            customerSignature: customerSignatureDataUrl || ''
         };
         try {
             localStorage.setItem('doorSurveyData', JSON.stringify(data));
         } catch (e) { console.warn('Could not save data to localStorage', e); }
     }
 
-    ['projectRef', 'projectName', 'surveyDate', 'surveyorName'].forEach(id => {
+    ['projectRef', 'projectName', 'siteName', 'wardName', 'surveyDate', 'surveyorName', 'notesPC', 'notesProject', 'intrusiveComments', 'customerName'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', saveData);
     });
+    // radios
+    document.querySelectorAll('input[name="intrusiveSurvey"]').forEach(r => r.addEventListener('change', saveData));
+    document.querySelectorAll('input[name="doorsetMadeSafe"]').forEach(r => r.addEventListener('change', saveData));
 
     // mapping persistence
     function loadMapping() {
@@ -280,6 +388,94 @@
         }));
     }
 
+    // keep intrusive images in a global variable so they persist across saves
+    window._intrusiveImages = [];
+
+    document.getElementById('intrusiveImagesInput').addEventListener('change', async function () {
+        const files = this.files;
+        if (!files || !files.length) return;
+        try {
+            const arr = await readFilesAsDataURLs(files);
+            window._intrusiveImages = (window._intrusiveImages || []).concat(arr);
+            saveData();
+            alert(arr.length + ' intrusive image(s) added.');
+            this.value = '';
+        } catch (e) {
+            console.error('Error reading intrusive images', e);
+            alert('Error reading intrusive images.');
+        }
+    });
+
+    // signature pad logic (very simple)
+    (function setupSignaturePad(){
+        const canvas = document.getElementById('signaturePad');
+        const ctx = canvas.getContext('2d');
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        let drawing = false;
+        let lastX = 0, lastY = 0;
+
+        function posFromEvent(e) {
+            const rect = canvas.getBoundingClientRect();
+            if (e.touches && e.touches.length) {
+                const t = e.touches[0];
+                return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+            } else {
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            }
+        }
+
+        function start(e) {
+            drawing = true;
+            const p = posFromEvent(e);
+            lastX = p.x; lastY = p.y;
+            e.preventDefault();
+        }
+        function move(e) {
+            if (!drawing) return;
+            const p = posFromEvent(e);
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(p.x, p.y);
+            ctx.stroke();
+            lastX = p.x; lastY = p.y;
+            e.preventDefault();
+        }
+        function end(e) {
+            drawing = false;
+            e.preventDefault();
+        }
+
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('touchstart', start);
+        canvas.addEventListener('mousemove', move);
+        canvas.addEventListener('touchmove', move);
+        canvas.addEventListener('mouseup', end);
+        canvas.addEventListener('touchend', end);
+        canvas.addEventListener('mouseleave', end);
+    })();
+
+    function clearSignature() {
+        const canvas = document.getElementById('signaturePad');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        customerSignatureDataUrl = '';
+        const prev = document.getElementById('signaturePreview');
+        prev.style.display = 'none';
+        saveData();
+    }
+
+    function saveSignature() {
+        const canvas = document.getElementById('signaturePad');
+        const dataUrl = canvas.toDataURL('image/png');
+        customerSignatureDataUrl = dataUrl;
+        const prev = document.getElementById('signaturePreview');
+        prev.src = dataUrl;
+        prev.style.display = 'block';
+        saveData();
+        alert('Signature saved.');
+    }
+
     async function addDoor() {
         const dNo = document.getElementById('doorNumber').value.trim();
         if (!dNo) { alert('Please enter a Door Number'); return; }
@@ -314,6 +510,7 @@
             doorLeafFinish: document.getElementById('doorLeafFinish').value,
             doorFrameFinish: document.getElementById('doorFrameFinish').value,
             architraveProfile: document.getElementById('architraveProfile').value,
+            architraveFinish: document.getElementById('architraveFinish') ? document.getElementById('architraveFinish').value : '',
             cylinderProfile: document.getElementById('cylinderProfile').value,
             suiteRef: document.getElementById('suiteRef').value,
             overrideType: document.getElementById('overrideType').value,
@@ -330,6 +527,7 @@
         document.getElementById('doorNumber').value = '';
         document.getElementById('doorName').value = '';
         document.getElementById('imagesInput').value = '';
+        document.getElementById('dimDetail').value = '';
         // clear custom inputs
         mapping.forEach(m => { if (m.type === 'custom') { const el = document.getElementById(`custom_${m.id}`); if (el) el.value = ''; } });
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -343,7 +541,7 @@
             const vals = [
                 door.doorNumber, door.doorName, door.width, door.height, door.frameDepth, door.dimDetail, door.doorThickness,
                 door.frameProfile1, door.frameProfile2, door.doorLeafFinish, door.doorFrameFinish,
-                door.architraveProfile, door.cylinderProfile, door.suiteRef, door.overrideType, door.handing
+                door.architraveProfile, door.architraveFinish, door.cylinderProfile, door.suiteRef, door.overrideType, door.handing
             ];
             vals.forEach(v => { row.insertCell().innerText = (v !== undefined && v !== null && v !== '') ? v : '-'; });
 
@@ -399,13 +597,36 @@
     function exportCSV() {
         if (!doors || doors.length === 0) { alert('No doors to export'); return; }
 
-        // Project block
-        const projectHeader = ["Project Ref", "Project Name", "Survey Date", "Surveyor Name"];
+        // Project block (expanded with site and ward)
+        const projectHeader = ["Project Ref", "Project Name", "Site Name", "Ward Name", "Survey Date", "Surveyor Name"];
         const projectValues = [
             document.getElementById('projectRef').value || '',
             document.getElementById('projectName').value || '',
+            document.getElementById('siteName').value || '',
+            document.getElementById('wardName').value || '',
             document.getElementById('surveyDate').value || '',
             document.getElementById('surveyorName').value || ''
+        ];
+
+        // Extra separate blocks (notes, intrusive, customer)
+        const notesHeader = ["PC Notes", "Project Notes"];
+        const notesValues = [
+            document.getElementById('notesPC').value || '',
+            document.getElementById('notesProject').value || ''
+        ];
+
+        const intrusiveHeader = ["Intrusive Survey undertaken", "Doorset made safe", "Intrusive Comments", "Intrusive Images Count"];
+        const intrusiveValues = [
+            (document.querySelector('input[name="intrusiveSurvey"]:checked') ? document.querySelector('input[name="intrusiveSurvey"]:checked').value : 'No'),
+            (document.querySelector('input[name="doorsetMadeSafe"]:checked') ? document.querySelector('input[name="doorsetMadeSafe"]:checked').value : 'No'),
+            document.getElementById('intrusiveComments').value || '',
+            (window._intrusiveImages && window._intrusiveImages.length) ? window._intrusiveImages.length : 0
+        ];
+
+        const customerHeader = ["Customer Name", "Customer Signature Included"];
+        const customerValues = [
+            document.getElementById('customerName').value || '',
+            customerSignatureDataUrl ? 'Yes' : 'No'
         ];
 
         // Determine active mapping entries (in order)
@@ -417,6 +638,19 @@
         let csv = '';
         csv += projectHeader.map(csvEscape).join(',') + '\n';
         csv += projectValues.map(csvEscape).join(',') + '\n\n';
+
+        // notes block
+        csv += notesHeader.map(csvEscape).join(',') + '\n';
+        csv += notesValues.map(csvEscape).join(',') + '\n\n';
+
+        // intrusive block
+        csv += intrusiveHeader.map(csvEscape).join(',') + '\n';
+        csv += intrusiveValues.map(csvEscape).join(',') + '\n\n';
+
+        // customer block
+        csv += customerHeader.map(csvEscape).join(',') + '\n';
+        csv += customerValues.map(csvEscape).join(',') + '\n\n';
+
         csv += doorHeader.map(csvEscape).join(',') + '\n';
 
         // rows
@@ -451,7 +685,7 @@
 
     // Export only images as a ZIP (images grouped in folders per door number)
     async function exportImages() {
-        if (!doors || doors.length === 0) { alert('No doors / images to export'); return; }
+        if ((!doors || doors.length === 0) && (!window._intrusiveImages || window._intrusiveImages.length === 0) && !customerSignatureDataUrl) { alert('No doors / images to export'); return; }
         const zip = new JSZip();
         let anyImage = false;
 
@@ -473,7 +707,34 @@
             }
         }
 
-        if (!anyImage) { alert('No images attached to any doors.'); return; }
+        // intrusive images
+        if (window._intrusiveImages && window._intrusiveImages.length) {
+            anyImage = true;
+            const folder = zip.folder('intrusive_images');
+            for (let k = 0; k < window._intrusiveImages.length; k++) {
+                const img = window._intrusiveImages[k];
+                try {
+                    const ab = await dataUrlToArrayBuffer(img.dataUrl);
+                    const filename = sanitizeFilename(img.name || `intrusive-${k+1}.jpg`);
+                    folder.file(filename, ab);
+                } catch (e) {
+                    console.warn('Skipping intrusive image due to error', e);
+                }
+            }
+        }
+
+        // customer signature
+        if (customerSignatureDataUrl) {
+            anyImage = true;
+            try {
+                const ab = await dataUrlToArrayBuffer(customerSignatureDataUrl);
+                zip.file('customer_signature.png', ab);
+            } catch (e) {
+                console.warn('Skipping signature due to error', e);
+            }
+        }
+
+        if (!anyImage) { alert('No images attached to any doors or survey.'); return; }
 
         zip.generateAsync({ type: 'blob' }).then(function(content) {
             const a = document.createElement('a');
@@ -489,16 +750,38 @@
 
     // Export both CSV and Images together in one ZIP; CSV uses mapping
     async function exportAll() {
-        if (!doors || doors.length === 0) { alert('No doors to export'); return; }
+        if (!doors || doors.length === 0) { if (!confirm('There are no door entries to include. Continue to export survey extras only?')) return; }
         const zip = new JSZip();
 
         // Project block
-        const projectHeader = ["Project Ref", "Project Name", "Survey Date", "Surveyor Name"];
+        const projectHeader = ["Project Ref", "Project Name", "Site Name", "Ward Name", "Survey Date", "Surveyor Name"];
         const projectValues = [
             document.getElementById('projectRef').value || '',
             document.getElementById('projectName').value || '',
+            document.getElementById('siteName').value || '',
+            document.getElementById('wardName').value || '',
             document.getElementById('surveyDate').value || '',
             document.getElementById('surveyorName').value || ''
+        ];
+
+        const notesHeader = ["PC Notes", "Project Notes"];
+        const notesValues = [
+            document.getElementById('notesPC').value || '',
+            document.getElementById('notesProject').value || ''
+        ];
+
+        const intrusiveHeader = ["Intrusive Survey undertaken", "Doorset made safe", "Intrusive Comments", "Intrusive Images Count"];
+        const intrusiveValues = [
+            (document.querySelector('input[name="intrusiveSurvey"]:checked') ? document.querySelector('input[name="intrusiveSurvey"]:checked').value : 'No'),
+            (document.querySelector('input[name="doorsetMadeSafe"]:checked') ? document.querySelector('input[name="doorsetMadeSafe"]:checked').value : 'No'),
+            document.getElementById('intrusiveComments').value || '',
+            (window._intrusiveImages && window._intrusiveImages.length) ? window._intrusiveImages.length : 0
+        ];
+
+        const customerHeader = ["Customer Name", "Customer Signature Included"];
+        const customerValues = [
+            document.getElementById('customerName').value || '',
+            customerSignatureDataUrl ? 'Yes' : 'No'
         ];
 
         const active = mapping.filter(m => m.include);
@@ -507,6 +790,16 @@
         let csv = '';
         csv += projectHeader.map(csvEscape).join(',') + '\n';
         csv += projectValues.map(csvEscape).join(',') + '\n\n';
+
+        csv += notesHeader.map(csvEscape).join(',') + '\n';
+        csv += notesValues.map(csvEscape).join(',') + '\n\n';
+
+        csv += intrusiveHeader.map(csvEscape).join(',') + '\n';
+        csv += intrusiveValues.map(csvEscape).join(',') + '\n\n';
+
+        csv += customerHeader.map(csvEscape).join(',') + '\n';
+        csv += customerValues.map(csvEscape).join(',') + '\n\n';
+
         csv += doorHeader.map(csvEscape).join(',') + '\n';
 
         doors.forEach(d => {
@@ -524,7 +817,7 @@
 
         zip.file('survey.csv', csv);
 
-        // Add images
+        // Add images per door
         let anyImage = false;
         for (let i = 0; i < doors.length; i++) {
             const door = doors[i];
@@ -541,6 +834,33 @@
                 } catch (e) {
                     console.warn('Skipping image due to error', e);
                 }
+            }
+        }
+
+        // intrusive images
+        if (window._intrusiveImages && window._intrusiveImages.length) {
+            anyImage = true;
+            const folder = zip.folder('intrusive_images');
+            for (let k = 0; k < window._intrusiveImages.length; k++) {
+                const img = window._intrusiveImages[k];
+                try {
+                    const ab = await dataUrlToArrayBuffer(img.dataUrl);
+                    const filename = sanitizeFilename(img.name || `intrusive-${k+1}.jpg`);
+                    folder.file(filename, ab);
+                } catch (e) {
+                    console.warn('Skipping intrusive image due to error', e);
+                }
+            }
+        }
+
+        // include customer signature
+        if (customerSignatureDataUrl) {
+            anyImage = true;
+            try {
+                const ab = await dataUrlToArrayBuffer(customerSignatureDataUrl);
+                zip.file('customer_signature.png', ab);
+            } catch (e) {
+                console.warn('Skipping signature due to error', e);
             }
         }
 
@@ -733,6 +1053,9 @@
     // initial render
     renderCustomFields();
     loadData();
+
+    // attach imagesInput change handler to auto-save selected door images to temporary list (files input cannot be persisted)
+    document.getElementById('imagesInput').addEventListener('change', function(){ /* no-op, handled on addDoor */ });
 
     // install prompt
     window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('installPrompt').style.display = 'block'; });
