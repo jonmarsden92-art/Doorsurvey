@@ -15,7 +15,7 @@
         h2 { margin: 0 0 16px 0; font-size: 18px; color: #333; }
         .section { background: #fff; padding: 16px; margin: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
         label { display: block; margin-top: 12px; margin-bottom: 4px; font-weight: 600; font-size: 14px; color: #555; }
-        input, textarea, select { width: 100%; padding: 12px; margin: 0; font-size: 16px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fafafa; transition: all 0.2s; }
+        input, textarea, select { width: 100%; padding: 12px; margin: 0; font-size: 16px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fafafa; transition: transform 0.08s ease; }
         input:focus, textarea:focus, select:focus { outline: none; border-color: #007bff; background: white; }
         textarea { resize: vertical; min-height: 80px; font-family: inherit; }
         button { width: 100%; padding: 14px; margin-top: 12px; font-size: 16px; font-weight: 600; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; transition: transform 0.08s ease; }
@@ -240,6 +240,12 @@
     let deferredPrompt;
     let customerSignatureDataUrl = '';
 
+    // Remove any old persistent localStorage data so reopening the site doesn't show stale data
+    try {
+        localStorage.removeItem('doorSurveyData');
+        localStorage.removeItem('doorSurveyMapping');
+    } catch (e) { /* ignore if unavailable */ }
+
     // mapping entries: { id, label, include, type: 'field'|'custom' }
     const DEFAULT_MAPPING = [
         { id: 'doorNumber', label: 'Door Number', include: true, type: 'field' },
@@ -262,9 +268,10 @@
         { id: 'imagesCount', label: 'ImagesCount', include: true, type: 'field' }
     ];
 
+    // Use sessionStorage so data is isolated to the current tab/window and cleared when the tab is closed.
     function loadData() {
         try {
-            const saved = localStorage.getItem('doorSurveyData');
+            const saved = sessionStorage.getItem('doorSurveyData');
             if (saved) {
                 const data = JSON.parse(saved);
                 document.getElementById('projectRef').value = data.projectRef || '';
@@ -284,7 +291,8 @@
                 if (madeSafe === 'Yes') document.getElementById('madeSafe_yes').checked = true;
                 else document.getElementById('madeSafe_no').checked = true;
                 document.getElementById('intrusiveComments').value = (data.surveyExtras && data.surveyExtras.intrusiveComments) || '';
-                // intrusive images not pre-filled into file inputs (browsers restrict that), but stored
+                // restore intrusive images (session-scoped)
+                window._intrusiveImages = (data.surveyExtras && data.surveyExtras.intrusiveImages) || [];
                 // customer
                 document.getElementById('customerName').value = data.customerName || '';
                 customerSignatureDataUrl = data.customerSignature || '';
@@ -327,8 +335,8 @@
             customerSignature: customerSignatureDataUrl || ''
         };
         try {
-            localStorage.setItem('doorSurveyData', JSON.stringify(data));
-        } catch (e) { console.warn('Could not save data to localStorage', e); }
+            sessionStorage.setItem('doorSurveyData', JSON.stringify(data));
+        } catch (e) { console.warn('Could not save data to sessionStorage', e); }
     }
 
     ['projectRef', 'projectName', 'siteName', 'wardName', 'surveyDate', 'surveyorName', 'notesPC', 'notesProject', 'intrusiveComments', 'customerName'].forEach(id => {
@@ -339,17 +347,17 @@
     document.querySelectorAll('input[name="intrusiveSurvey"]').forEach(r => r.addEventListener('change', saveData));
     document.querySelectorAll('input[name="doorsetMadeSafe"]').forEach(r => r.addEventListener('change', saveData));
 
-    // mapping persistence
+    // mapping persistence (session-scoped)
     function loadMapping() {
         try {
-            const raw = localStorage.getItem('doorSurveyMapping');
+            const raw = sessionStorage.getItem('doorSurveyMapping');
             if (raw) return JSON.parse(raw);
         } catch (e) { console.warn('Error loading mapping', e); }
         return JSON.parse(JSON.stringify(DEFAULT_MAPPING));
     }
     function saveMapping(mapping) {
         try {
-            localStorage.setItem('doorSurveyMapping', JSON.stringify(mapping));
+            sessionStorage.setItem('doorSurveyMapping', JSON.stringify(mapping));
         } catch (e) { console.warn('Error saving mapping', e); }
     }
 
@@ -388,7 +396,7 @@
         }));
     }
 
-    // keep intrusive images in a global variable so they persist across saves
+    // keep intrusive images in a global variable so they persist across saves (session-scoped)
     window._intrusiveImages = [];
 
     document.getElementById('intrusiveImagesInput').addEventListener('change', async function () {
