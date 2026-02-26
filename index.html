@@ -7,7 +7,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#007bff">
+    <meta name="description" content="Professional door surveying and documentation tool">
+    <meta name="apple-mobile-web-app-title" content="Door Survey">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23007bff' width='192' height='192'/><text x='50%' y='50%' font-size='100' fill='white' text-anchor='middle' dominant-baseline='middle'>🚪</text></svg>">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <style>
@@ -255,10 +259,41 @@
 </div>
 
 <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('service-worker.js').then(registration => {
+                console.log('Service Worker registered:', registration);
+            }).catch(error => {
+                console.error('Service Worker registration failed:', error);
+            });
+        });
+    }
+
+    // PWA Install Prompt
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        document.getElementById('installPrompt').style.display = 'block';
+    });
+
+    function installApp() {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                }
+                deferredPrompt = null;
+                document.getElementById('installPrompt').style.display = 'none';
+            });
+        }
+    }
+
     document.getElementById("surveyDate").value = new Date().toISOString().split("T")[0];
     let doors = [];
     let lastDoor = null;
-    let deferredPrompt;
     let customerSignatureDataUrl = '';
     let currentExtraItems = [];
 
@@ -1071,7 +1106,7 @@
             up.className = 'secondary';
             up.style.minWidth = '48px';
             up.innerText = '↑';
-            up.onclick = () => { if (idx > 0) { const tmp = mapping[idx-1]; mapping[idx-1] = mapping[idx]; mapping[idx] = tmp; renderMappingList(); } };
+                        up.onclick = () => { if (idx > 0) { const tmp = mapping[idx-1]; mapping[idx-1] = mapping[idx]; mapping[idx] = tmp; renderMappingList(); } };
             controls.appendChild(up);
 
             const down = document.createElement('button');
