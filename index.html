@@ -2,76 +2,996 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Door Survey Application</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+    <title>Door Survey App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#007bff">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1, h2 { color: #333; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .button { margin: 10px 0; padding: 10px 15px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
-        .button:hover { background-color: #45a049; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; padding-bottom: 20px; -webkit-font-smoothing: antialiased; }
+        h1 { background: #007bff; color: white; margin: 0; padding: 16px; font-size: 22px; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h2 { margin: 0 0 16px 0; font-size: 18px; color: #333; }
+        .section { background: #fff; padding: 16px; margin: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+        label { display: block; margin-top: 12px; margin-bottom: 4px; font-weight: 600; font-size: 14px; color: #555; }
+        input, textarea, select { width: 100%; padding: 12px; margin: 0; font-size: 16px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fafafa; transition: transform 0.08s ease; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: #007bff; background: white; }
+        textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+        button { width: 100%; padding: 14px; margin-top: 12px; font-size: 16px; font-weight: 600; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; transition: transform 0.08s ease, box-shadow 0.08s ease; box-shadow: 0 2px 8px rgba(0,123,255,0.3); }
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,123,255,0.4); }
+        button:active { transform: scale(0.98); box-shadow: 0 1px 4px rgba(0,123,255,0.3); }
+        button.secondary { background: #6c757d; box-shadow: 0 2px 8px rgba(108,117,125,0.3); }
+        button.copy { background: #28a745; box-shadow: 0 2px 8px rgba(40,167,69,0.3); }
+        button.danger { background: #dc3545; box-shadow: 0 2px 8px rgba(220,53,69,0.3); }
+        .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 12px; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        th, td { border: 1px solid #ddd; padding: 8px 6px; font-size: 13px; text-align: left; white-space: nowrap; }
+        th { background: #007bff; color: white; font-weight: 600; position: sticky; top: 0; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .door-count { background: #28a745; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; display: inline-block; margin-bottom: 12px; }
+        .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+        .install-prompt { background: #fff3cd; border: 2px solid #ffc107; padding: 12px; margin: 12px; border-radius: 8px; display: none; }
+        #imageModal { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 12px; }
+        #imageModal .modal-content { background: white; border-radius: 10px; max-width: 760px; width: 100%; max-height: 90vh; overflow: auto; padding: 12px; }
+        #imageModal img { max-width: 100%; border-radius: 8px; margin-bottom: 8px; display: block; }
+        .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+        .image-card { background: #f8f9fa; border-radius: 8px; padding: 8px; text-align: center; }
+        .small-btn { padding: 6px 8px; font-size: 13px; border-radius: 8px; width: auto; display:inline-block; margin-top: 6px; }
+        #mappingModal { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 9998; padding: 12px; }
+        #mappingModal .modal-content { background: white; border-radius: 10px; width: 960px; max-width: 98%; max-height: 92vh; overflow: auto; padding: 16px; }
+        .mapping-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+        .mapping-row input[type="text"] { flex:1; }
+        .mapping-row .small { width:58px; }
+        .mapping-controls { display:flex; gap:8px; }
+        @media (max-width: 520px) {
+            table { min-width: 720px; }
+            .mapping-row { flex-direction: column; align-items: stretch; }
+            .mapping-row .small { width:100%; }
+        }
+        #signaturePreview { display:block; max-width: 300px; margin-top: 8px; border-radius: 6px; border: 1px solid #ddd; }
+        .inline { display:inline-block; width:auto; }
     </style>
 </head>
 <body>
-    <h1>Door Survey Application</h1>
+
+<h1>🚪 Door Survey</h1>
+
+<div id="installPrompt" class="install-prompt">
+    <strong>📱 Install this app!</strong>
+    <p style="margin: 8px 0; font-size: 14px;">Add to your home screen for easy access and offline use.</p>
+    <button onclick="installApp()">Install App</button>
+    <button onclick="document.getElementById('installPrompt').style.display='none'" style="background: #6c757d; margin-top: 4px;">Maybe Later</button>
+</div>
+
+<div class="section">
     <h2>Project Information</h2>
-    <div id="project-info"></div>
-    <h2>Notes</h2>
-    <div id="notes"></div>
-    <h2>Intrusive Survey</h2>
-    <div id="intrusive-survey"></div>
+    <label>Project Ref</label><input id="projectRef">
+    <label>Project Name</label><input id="projectName">
+    <label>Site Name</label><input id="siteName">
+    <label>Ward Name</label><input id="wardName">
+    <label>Survey Date</label><input id="surveyDate" type="date">
+    <label>Surveyor Name</label><input id="surveyorName">
+</div>
+
+<div class="section">
+    <h2>Add Door</h2>
+    <div style="display:flex; gap:8px;">
+        <div style="flex:1"><button class="copy" onclick="copyPrevious()">🔁 Copy Previous Door Details</button></div>
+        <div style="flex:1"><button class="secondary" onclick="openMappingModal()">⚙️ Customize Fields</button></div>
+    </div>
+
+    <label>Door Number</label><input id="doorNumber" type="text" placeholder="e.g., D01">
+    <label>Door Name</label><input id="doorName" type="text" placeholder="e.g., Main Entrance">
+    <label>Width (mm)</label><input id="width" type="number">
+    <label>Height (mm)</label><input id="height" type="number">
+    <label>Frame Depth</label><input id="frameDepth" type="text">
+    <label>Dimension Detail</label>
+    <select id="dimDetail">
+        <option value="">-- Select --</option>
+        <option value="IFD">IFD</option>
+        <option value="OFD">OFD</option>
+        <option value="S/O">S/O</option>
+    </select>
+
+    <label>Existing Door Thickness</label><input id="doorThickness" type="text">
+    <label>Existing Frame Profile – Legs</label><input id="frameProfile1" type="text">
+    <label>Existing Frame Profile – Head</label><input id="frameProfile2" type="text">
+    <label>Existing Door Leaf Finish</label><input id="doorLeafFinish" type="text">
+    <label>Existing Door Frame Finish</label><input id="doorFrameFinish" type="text">
+    <label>Existing Architrave Profile</label><input id="architraveProfile" type="text">
+    <label>Existing Architrave Finish</label><input id="architraveFinish" type="text">
+    <label>Existing Cylinder Profile</label><input id="cylinderProfile" type="text">
+    <label>Existing Suite Ref</label><input id="suiteRef" type="text">
+    <label>Existing Override Type</label><input id="overrideType" type="text">
+    <label>Handing</label>
+    <select id="handing">
+        <option value="">-- Select --</option>
+        <option>RH In</option>
+        <option>LH In</option>
+        <option>RH Out</option>
+        <option>LH Out</option>
+        <option>ML LH in</option>
+        <option>ML RH out</option>
+        <option>ML LH Out</option>
+        <option>ML RH In</option>
+        <option>Other</option>
+    </select>
+
+    <div id="customFieldsContainer"><!-- custom fields injected here --></div>
+
+    <label>Attach Images</label>
+    <input id="imagesInput" type="file" accept="image/*" multiple>
+    <small style="color:#666; display:block; margin-top:6px;">Select one or more photos for this door. They are saved locally and included in exports.</small>
+
+    <button onclick="addDoor()">➕ Add Door to Schedule</button>
+</div>
+
+<div class="section">
     <h2>Door Schedule</h2>
-    <div id="door-schedule"></div>
-    <h2>Images Metadata</h2>
-    <div id="images-metadata"></div>
-    <button class="button" id="export-btn">Export to Excel</button>
+    <div class="door-count" id="doorCount">0 Doors Added</div>
+    <div class="table-container">
+        <table id="doorTable">
+            <thead>
+                <tr>
+                    <th>Door No.</th><th>Door Name</th><th>Width</th><th>Height</th><th>Frame Depth</th>
+                    <th>Dim Detail</th><th>Thickness</th><th>Frame 1</th><th>Frame 2</th>
+                    <th>Leaf Finish</th><th>Frame Finish</th><th>Architrave</th><th>Architrave Finish</th><th>Cylinder</th>
+                    <th>Suite Ref</th><th>Override</th><th>Handing</th><th>Images</th><th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="doorTableBody"></tbody>
+        </table>
+    </div>
 
-    <script>
-        // Sample Data
-        const projectInfo = { "Project Name": "Sample Project", "Location": "123 Main St" };
-        const notes = ["Note 1", "Note 2", "Note 3"];
-        const intrusiveSurvey = [{ "Location": "Room 101", "Condition": "Good" }];
-        const doorSchedule = [{ "Door ID": "D001", "Description": "Front Door" }];
-        const imagesMetadata = [{ "Image": "door_1.jpg", "Date Captured": "2026-02-25" }];
+    <div class="button-group">
+        <button class="secondary" onclick="exportExcel()">📊 Export Excel</button>
+        <button class="secondary" onclick="exportImages()">🖼️ Export Images (ZIP)</button>
+    </div>
+    <button class="copy" onclick="exportAll()">📦 Export Excel + Images (ZIP)</button>
+    <button class="danger" onclick="clearAllDoors()">🗑️ Clear All Doors</button>
+</div>
 
-        // Display Sample Data
-        document.getElementById('project-info').innerHTML = JSON.stringify(projectInfo, null, 2);
-        document.getElementById('notes').innerHTML = notes.join('<br/>');
-        document.getElementById('intrusive-survey').innerHTML = JSON.stringify(intrusiveSurvey, null, 2);
-        document.getElementById('door-schedule').innerHTML = JSON.stringify(doorSchedule, null, 2);
-        document.getElementById('images-metadata').innerHTML = JSON.stringify(imagesMetadata, null, 2);
+<div class="section">
+    <h2>Survey Notes (separate)</h2>
+    <label>Notes for PC</label>
+    <textarea id="notesPC" placeholder="Notes for PC..."></textarea>
+    <label>Notes for Projects</label>
+    <textarea id="notesProject" placeholder="Notes for projects..."></textarea>
+</div>
 
-        // Export to Excel Functionality
-        document.getElementById('export-btn').addEventListener('click', function () {
-            const wb = XLSX.utils.book_new();
-            wb.Props = { Title: "Door Survey Export" };
+<div class="section">
+    <h2>Intrusive Survey (separate)</h2>
+    <label>Intrusive Survey undertaken</label>
+    <div style="display:flex; gap:8px;">
+        <label style="flex:1"><input type="radio" name="intrusiveSurvey" id="intrusive_yes" value="Yes"> Yes</label>
+        <label style="flex:1"><input type="radio" name="intrusiveSurvey" id="intrusive_no" value="No" checked> No</label>
+    </div>
 
-            // Project Info Sheet
-            const projectInfoSheet = XLSX.utils.json_to_sheet([projectInfo]);
-            XLSX.utils.book_append_sheet(wb, projectInfoSheet, "Project Info");
+    <label>Doorset made safe</label>
+    <div style="display:flex; gap:8px;">
+        <label style="flex:1"><input type="radio" name="doorsetMadeSafe" id="madeSafe_yes" value="Yes"> Yes</label>
+        <label style="flex:1"><input type="radio" name="doorsetMadeSafe" id="madeSafe_no" value="No" checked> No</label>
+    </div>
 
-            // Notes Sheet
-            const notesSheet = XLSX.utils.json_to_sheet(notes.map((note, index) => ({ "Note": note })));
-            XLSX.utils.book_append_sheet(wb, notesSheet, "Notes");
+    <label>Intrusive survey damage details</label>
+    <textarea id="intrusiveComments" placeholder="Describe any damage..."></textarea>
+    <label>Attach Intrusive Survey Images</label>
+    <input id="intrusiveImagesInput" type="file" accept="image/*" multiple>
+    <small style="color:#666; display:block; margin-top:6px;">Images here are part of the intrusive survey and are exported separately.</small>
+</div>
 
-            // Intrusive Survey Sheet
-            const intrusiveSurveySheet = XLSX.utils.json_to_sheet(intrusiveSurvey);
-            XLSX.utils.book_append_sheet(wb, intrusiveSurveySheet, "Intrusive Survey");
+<div class="section">
+    <h2>Customer</h2>
+    <label>Customer Name</label>
+    <input id="customerName" placeholder="Customer name">
+    <label>Customer Signature</label>
+    <canvas id="signaturePad" width="600" height="150" style="border:1px solid #ddd; border-radius:6px; touch-action: none;"></canvas>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+        <button type="button" onclick="clearSignature()" class="secondary" style="width:auto; padding:10px 12px;">Clear Signature</button>
+        <button type="button" onclick="saveSignature()" class="copy" style="width:auto; padding:10px 12px;">Save Signature</button>
+    </div>
+    <img id="signaturePreview" alt="Saved signature preview" style="display:none;">
+</div>
 
-            // Door Schedule Sheet
-            const doorScheduleSheet = XLSX.utils.json_to_sheet(doorSchedule);
-            XLSX.utils.book_append_sheet(wb, doorScheduleSheet, "Door Schedule");
+<div id="imageModal" onclick="hideImageModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <strong id="modalTitle">Images</strong>
+            <button onclick="closeImageModal()" style="background:#dc3545; color:white; padding:8px 10px; border-radius:8px;">Close</button>
+        </div>
+        <div id="modalBody" class="image-grid"></div>
+    </div>
+</div>
 
-            // Images Metadata Sheet
-            const imagesMetadataSheet = XLSX.utils.json_to_sheet(imagesMetadata);
-            XLSX.utils.book_append_sheet(wb, imagesMetadataSheet, "Images Metadata");
+<div id="mappingModal" onclick="if(event.target.id==='mappingModal') closeMappingModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="margin:0">Customize Excel Fields</h3>
+            <div style="display:flex; gap:8px;">
+                <button class="secondary" onclick="resetMappingToDefaults()">Reset to Defaults</button>
+                <button onclick="closeMappingModal()" style="background:#dc3545;">Close</button>
+            </div>
+        </div>
 
-            // Export the file
-            XLSX.writeFile(wb, "Door_Survey_Report.xlsx");
+        <div id="mappingList"></div>
+
+        <div style="display:flex; gap:8px; margin-top:12px;">
+            <input id="newFieldLabel" placeholder="New field label (e.g. Room No)" style="flex:1; padding:10px;">
+            <button class="copy" onclick="addCustomField()">Add Custom Field</button>
+        </div>
+        <p style="margin-top:8px; color:#666;">Built-in fields cannot be deleted but can be hidden by toggling Include. Custom fields will appear on the Add Door form.</p>
+    </div>
+</div>
+
+<script>
+    document.getElementById("surveyDate").value = new Date().toISOString().split("T")[0];
+    let doors = [];
+    let lastDoor = null;
+    let deferredPrompt;
+    let customerSignatureDataUrl = '';
+
+    try {
+        localStorage.removeItem('doorSurveyData');
+        localStorage.removeItem('doorSurveyMapping');
+    } catch (e) { }
+
+    const DEFAULT_MAPPING = [
+        { id: 'doorNumber', label: 'Door Number', include: true, type: 'field' },
+        { id: 'doorName', label: 'Door Name', include: true, type: 'field' },
+        { id: 'width', label: 'Width', include: true, type: 'field' },
+        { id: 'height', label: 'Height', include: true, type: 'field' },
+        { id: 'frameDepth', label: 'Frame Depth', include: true, type: 'field' },
+        { id: 'dimDetail', label: 'Dimension Detail', include: true, type: 'field' },
+        { id: 'doorThickness', label: 'Existing Door Thickness', include: true, type: 'field' },
+        { id: 'frameProfile1', label: 'Existing Frame Profile 1', include: true, type: 'field' },
+        { id: 'frameProfile2', label: 'Existing Frame Profile 2', include: true, type: 'field' },
+        { id: 'doorLeafFinish', label: 'Door Leaf Finish', include: true, type: 'field' },
+        { id: 'doorFrameFinish', label: 'Door Frame Finish', include: true, type: 'field' },
+        { id: 'architraveProfile', label: 'Existing Architrave Profile', include: true, type: 'field' },
+        { id: 'architraveFinish', label: 'Architrave Finish', include: true, type: 'field' },
+        { id: 'cylinderProfile', label: 'Existing Cylinder Profile', include: true, type: 'field' },
+        { id: 'suiteRef', label: 'Existing Suite Ref', include: true, type: 'field' },
+        { id: 'overrideType', label: 'Existing Override Type', include: true, type: 'field' },
+        { id: 'handing', label: 'Handing', include: true, type: 'field' },
+        { id: 'imagesCount', label: 'ImagesCount', include: true, type: 'field' }
+    ];
+
+    function loadData() {
+        try {
+            const saved = sessionStorage.getItem('doorSurveyData');
+            if (saved) {
+                const data = JSON.parse(saved);
+                document.getElementById('projectRef').value = data.projectRef || '';
+                document.getElementById('projectName').value = data.projectName || '';
+                document.getElementById('siteName').value = data.siteName || '';
+                document.getElementById('wardName').value = data.wardName || '';
+                document.getElementById('surveyDate').value = data.surveyDate || '';
+                document.getElementById('surveyorName').value = data.surveyorName || '';
+                document.getElementById('notesPC').value = (data.surveyExtras && data.surveyExtras.notesPC) || '';
+                document.getElementById('notesProject').value = (data.surveyExtras && data.surveyExtras.notesProject) || '';
+                const intrusive = (data.surveyExtras && data.surveyExtras.intrusiveSurvey) || 'No';
+                if (intrusive === 'Yes') document.getElementById('intrusive_yes').checked = true;
+                else document.getElementById('intrusive_no').checked = true;
+                const madeSafe = (data.surveyExtras && data.surveyExtras.doorsetMadeSafe) || 'No';
+                if (madeSafe === 'Yes') document.getElementById('madeSafe_yes').checked = true;
+                else document.getElementById('madeSafe_no').checked = true;
+                document.getElementById('intrusiveComments').value = (data.surveyExtras && data.surveyExtras.intrusiveComments) || '';
+                window._intrusiveImages = (data.surveyExtras && data.surveyExtras.intrusiveImages) || [];
+                document.getElementById('customerName').value = data.customerName || '';
+                customerSignatureDataUrl = data.customerSignature || '';
+                if (customerSignatureDataUrl) {
+                    const prev = document.getElementById('signaturePreview');
+                    prev.src = customerSignatureDataUrl;
+                    prev.style.display = 'block';
+                }
+                doors = data.doors || [];
+                if (doors.length) {
+                    const ld = Object.assign({}, doors[doors.length - 1]);
+                    delete ld.doorNumber; delete ld.doorName;
+                    lastDoor = ld;
+                }
+                refreshTable();
+            }
+        } catch (e) { console.error('Error loading data', e); }
+    }
+
+    function saveData() {
+        const surveyExtras = {
+            notesPC: document.getElementById('notesPC').value || '',
+            notesProject: document.getElementById('notesProject').value || '',
+            intrusiveSurvey: document.querySelector('input[name="intrusiveSurvey"]:checked') ? document.querySelector('input[name="intrusiveSurvey"]:checked').value : 'No',
+            doorsetMadeSafe: document.querySelector('input[name="doorsetMadeSafe"]:checked') ? document.querySelector('input[name="doorsetMadeSafe"]:checked').value : 'No',
+            intrusiveComments: document.getElementById('intrusiveComments').value || '',
+            intrusiveImages: (window._intrusiveImages || [])
+        };
+
+        const data = {
+            projectRef: document.getElementById('projectRef').value,
+            projectName: document.getElementById('projectName').value,
+            siteName: document.getElementById('siteName').value,
+            wardName: document.getElementById('wardName').value,
+            surveyDate: document.getElementById('surveyDate').value,
+            surveyorName: document.getElementById('surveyorName').value,
+            doors: doors,
+            surveyExtras: surveyExtras,
+            customerName: document.getElementById('customerName').value || '',
+            customerSignature: customerSignatureDataUrl || ''
+        };
+        try {
+            sessionStorage.setItem('doorSurveyData', JSON.stringify(data));
+        } catch (e) { console.warn('Could not save data to sessionStorage', e); }
+    }
+
+    ['projectRef', 'projectName', 'siteName', 'wardName', 'surveyDate', 'surveyorName', 'notesPC', 'notesProject', 'intrusiveComments', 'customerName'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', saveData);
+    });
+    document.querySelectorAll('input[name="intrusiveSurvey"]').forEach(r => r.addEventListener('change', saveData));
+    document.querySelectorAll('input[name="doorsetMadeSafe"]').forEach(r => r.addEventListener('change', saveData));
+
+    function loadMapping() {
+        try {
+            const raw = sessionStorage.getItem('doorSurveyMapping');
+            if (raw) return JSON.parse(raw);
+        } catch (e) { console.warn('Error loading mapping', e); }
+        return JSON.parse(JSON.stringify(DEFAULT_MAPPING));
+    }
+    function saveMapping(mapping) {
+        try {
+            sessionStorage.setItem('doorSurveyMapping', JSON.stringify(mapping));
+        } catch (e) { console.warn('Error saving mapping', e); }
+    }
+
+    let mapping = loadMapping();
+
+    function renderCustomFields() {
+        const container = document.getElementById('customFieldsContainer');
+        container.innerHTML = '';
+        mapping.forEach(m => {
+            if (m.type === 'custom') {
+                const id = `custom_${m.id}`;
+                const label = document.createElement('label');
+                label.innerText = m.label;
+                label.htmlFor = id;
+                const input = document.createElement('input');
+                input.id = id;
+                input.type = 'text';
+                input.placeholder = m.label;
+                input.style.marginTop = '4px';
+                container.appendChild(label);
+                container.appendChild(input);
+            }
         });
-    </script>
+    }
+
+    async function readFilesAsDataURLs(fileList) {
+        const files = Array.from(fileList || []);
+        return Promise.all(files.map(file => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve({ name: file.name, dataUrl: reader.result });
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }));
+    }
+
+    window._intrusiveImages = [];
+
+    document.getElementById('intrusiveImagesInput').addEventListener('change', async function () {
+        const files = this.files;
+        if (!files || !files.length) return;
+        try {
+            const arr = await readFilesAsDataURLs(files);
+            window._intrusiveImages = (window._intrusiveImages || []).concat(arr);
+            saveData();
+            alert(arr.length + ' intrusive image(s) added.');
+            this.value = '';
+        } catch (e) {
+            console.error('Error reading intrusive images', e);
+            alert('Error reading intrusive images.');
+        }
+    });
+
+    (function setupSignaturePad(){
+        const canvas = document.getElementById('signaturePad');
+        const ctx = canvas.getContext('2d');
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        let drawing = false;
+        let lastX = 0, lastY = 0;
+
+        function posFromEvent(e) {
+            const rect = canvas.getBoundingClientRect();
+            if (e.touches && e.touches.length) {
+                const t = e.touches[0];
+                return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+            } else {
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            }
+        }
+
+        function start(e) {
+            drawing = true;
+            const p = posFromEvent(e);
+            lastX = p.x; lastY = p.y;
+            e.preventDefault();
+        }
+        function move(e) {
+            if (!drawing) return;
+            const p = posFromEvent(e);
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(p.x, p.y);
+            ctx.stroke();
+            lastX = p.x; lastY = p.y;
+            e.preventDefault();
+        }
+        function end(e) {
+            drawing = false;
+            e.preventDefault();
+        }
+
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('touchstart', start);
+        canvas.addEventListener('mousemove', move);
+        canvas.addEventListener('touchmove', move);
+        canvas.addEventListener('mouseup', end);
+        canvas.addEventListener('touchend', end);
+        canvas.addEventListener('mouseleave', end);
+    })();
+
+    function clearSignature() {
+        const canvas = document.getElementById('signaturePad');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        customerSignatureDataUrl = '';
+        const prev = document.getElementById('signaturePreview');
+        prev.style.display = 'none';
+        saveData();
+    }
+
+    function saveSignature() {
+        const canvas = document.getElementById('signaturePad');
+        const dataUrl = canvas.toDataURL('image/png');
+        customerSignatureDataUrl = dataUrl;
+        const prev = document.getElementById('signaturePreview');
+        prev.src = dataUrl;
+        prev.style.display = 'block';
+        saveData();
+        alert('Signature saved.');
+    }
+
+    async function addDoor() {
+        const dNo = document.getElementById('doorNumber').value.trim();
+        if (!dNo) { alert('Please enter a Door Number'); return; }
+        const imagesFiles = document.getElementById('imagesInput').files;
+        let images = [];
+        try {
+            images = await readFilesAsDataURLs(imagesFiles);
+        } catch (e) {
+            console.error('Error reading images', e);
+            alert('Error reading selected images.');
+        }
+
+        const customFields = {};
+        mapping.forEach(m => {
+            if (m.type === 'custom') {
+                const el = document.getElementById(`custom_${m.id}`);
+                customFields[m.id] = el ? el.value : '';
+            }
+        });
+
+        const doorData = {
+            doorNumber: dNo,
+            doorName: document.getElementById('doorName').value,
+            width: document.getElementById('width').value,
+            height: document.getElementById('height').value,
+            frameDepth: document.getElementById('frameDepth').value,
+            dimDetail: document.getElementById('dimDetail').value,
+            doorThickness: document.getElementById('doorThickness').value,
+            frameProfile1: document.getElementById('frameProfile1').value,
+            frameProfile2: document.getElementById('frameProfile2').value,
+            doorLeafFinish: document.getElementById('doorLeafFinish').value,
+            doorFrameFinish: document.getElementById('doorFrameFinish').value,
+            architraveProfile: document.getElementById('architraveProfile').value,
+            architraveFinish: document.getElementById('architraveFinish').value,
+            cylinderProfile: document.getElementById('cylinderProfile').value,
+            suiteRef: document.getElementById('suiteRef').value,
+            overrideType: document.getElementById('overrideType').value,
+            handing: document.getElementById('handing').value,
+            images: images,
+            customFields: customFields
+        };
+        lastDoor = { ...doorData };
+        delete lastDoor.doorNumber; delete lastDoor.doorName;
+        doors.push(doorData);
+        refreshTable();
+        saveData();
+        document.getElementById('doorNumber').value = '';
+        document.getElementById('doorName').value = '';
+        document.getElementById('imagesInput').value = '';
+        document.getElementById('dimDetail').value = '';
+        mapping.forEach(m => { if (m.type === 'custom') { const el = document.getElementById(`custom_${m.id}`); if (el) el.value = ''; } });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function refreshTable() {
+        const tbody = document.getElementById('doorTableBody');
+        tbody.innerHTML = '';
+        doors.forEach((door, index) => {
+            const row = tbody.insertRow();
+            const vals = [
+                door.doorNumber, door.doorName, door.width, door.height, door.frameDepth, door.dimDetail, door.doorThickness,
+                door.frameProfile1, door.frameProfile2, door.doorLeafFinish, door.doorFrameFinish,
+                door.architraveProfile, door.architraveFinish, door.cylinderProfile, door.suiteRef, door.overrideType, door.handing
+            ];
+            vals.forEach(v => { row.insertCell().innerText = (v !== undefined && v !== null && v !== '') ? v : '-'; });
+
+            const imgCell = row.insertCell();
+            const imgCount = (door.images && door.images.length) ? door.images.length : 0;
+            const imgLabel = document.createElement('span');
+            imgLabel.innerText = imgCount ? `${imgCount} image${imgCount>1?'s':''}` : '-';
+            imgLabel.style.display = 'inline-block';
+            imgLabel.style.marginRight = '8px';
+            imgCell.appendChild(imgLabel);
+            if (imgCount) {
+                const viewBtn = document.createElement('button');
+                viewBtn.innerText = 'View';
+                viewBtn.className = 'small-btn';
+                viewBtn.style.background = '#007bff';
+                viewBtn.style.color = 'white';
+                viewBtn.onclick = () => showImagesModal(index);
+                imgCell.appendChild(viewBtn);
+            }
+
+            const actionCell = row.insertCell();
+            const delBtn = document.createElement('button');
+            delBtn.innerText = '🗑️';
+            delBtn.className = 'danger';
+            delBtn.style.padding = '6px 10px';
+            delBtn.onclick = () => { if (confirm('Delete this door?')) { doors.splice(index, 1); refreshTable(); saveData(); } };
+            actionCell.appendChild(delBtn);
+        });
+        const countEl = document.getElementById('doorCount');
+        countEl.innerText = doors.length === 1 ? '1 Door Added' : `${doors.length} Doors Added`;
+    }
+
+    function clearAllDoors() { if (confirm('Clear all?')) { doors = []; refreshTable(); saveData(); } }
+
+    function copyPrevious() {
+        if (!lastDoor) { alert('No data to copy'); return; }
+        Object.keys(lastDoor).forEach(k => { const el = document.getElementById(k); if (el) el.value = lastDoor[k]; });
+        mapping.forEach(m => {
+            if (m.type === 'custom') {
+                const el = document.getElementById(`custom_${m.id}`);
+                if (el && lastDoor.customFields) el.value = lastDoor.customFields[m.id] || '';
+            }
+        });
+    }
+
+    // Excel Export with Formatting
+    function exportExcel() {
+        if (!doors || doors.length === 0) { alert('No doors to export'); return; }
+
+        const wb = XLSX.utils.book_new();
+        wb.Props = { Title: "Door Survey Report" };
+
+        // Project Info Sheet
+        const projectData = [
+            ['Project Information'],
+            ['Project Ref', document.getElementById('projectRef').value],
+            ['Project Name', document.getElementById('projectName').value],
+            ['Site Name', document.getElementById('siteName').value],
+            ['Ward Name', document.getElementById('wardName').value],
+            ['Survey Date', document.getElementById('surveyDate').value],
+            ['Surveyor Name', document.getElementById('surveyorName').value]
+        ];
+        const projectSheet = XLSX.utils.aoa_to_sheet(projectData);
+        projectSheet['!cols'] = [{ wch: 20 }, { wch: 30 }];
+        XLSX.utils.book_append_sheet(wb, projectSheet, "Project Info");
+
+        // Notes Sheet
+        const notesData = [
+            ['Notes'],
+            ['PC Notes', document.getElementById('notesPC').value],
+            ['Project Notes', document.getElementById('notesProject').value]
+        ];
+        const notesSheet = XLSX.utils.aoa_to_sheet(notesData);
+        notesSheet['!cols'] = [{ wch: 20 }, { wch: 50 }];
+        XLSX.utils.book_append_sheet(wb, notesSheet, "Notes");
+
+        // Intrusive Survey Sheet
+        const intrusiveData = [
+            ['Intrusive Survey'],
+            ['Intrusive Survey', document.querySelector('input[name="intrusiveSurvey"]:checked')?.value || 'No'],
+            ['Doorset Made Safe', document.querySelector('input[name="doorsetMadeSafe"]:checked')?.value || 'No'],
+            ['Comments', document.getElementById('intrusiveComments').value],
+            ['Images Count', (window._intrusiveImages && window._intrusiveImages.length) || 0]
+        ];
+        const intrusiveSheet = XLSX.utils.aoa_to_sheet(intrusiveData);
+        intrusiveSheet['!cols'] = [{ wch: 20 }, { wch: 30 }];
+        XLSX.utils.book_append_sheet(wb, intrusiveSheet, "Intrusive Survey");
+
+        // Customer Sheet
+        const customerData = [
+            ['Customer Information'],
+            ['Customer Name', document.getElementById('customerName').value],
+            ['Signature Included', customerSignatureDataUrl ? 'Yes' : 'No']
+        ];
+        const customerSheet = XLSX.utils.aoa_to_sheet(customerData);
+        customerSheet['!cols'] = [{ wch: 20 }, { wch: 30 }];
+        XLSX.utils.book_append_sheet(wb, customerSheet, "Customer");
+
+        // Door Schedule Sheet
+        const active = mapping.filter(m => m.include);
+        const doorHeaders = active.map(m => m.label);
+        const doorRows = doors.map(d => active.map(m => {
+            if (m.type === 'field') {
+                if (m.id === 'imagesCount') return (d.images && d.images.length) ? d.images.length : 0;
+                return d[m.id] !== undefined ? d[m.id] : '';
+            } else if (m.type === 'custom') {
+                return (d.customFields && d.customFields[m.id]) ? d.customFields[m.id] : '';
+            }
+            return '';
+        }));
+        const doorData = [doorHeaders, ...doorRows];
+        const doorSheet = XLSX.utils.aoa_to_sheet(doorData);
+        doorSheet['!cols'] = doorHeaders.map(() => ({ wch: 15 }));
+        XLSX.utils.book_append_sheet(wb, doorSheet, "Door Schedule");
+
+        XLSX.writeFile(wb, `survey-${Date.now()}.xlsx`);
+    }
+
+    async function dataUrlToArrayBuffer(dataUrl) {
+        const res = await fetch(dataUrl);
+        return await res.arrayBuffer();
+    }
+
+    async function exportImages() {
+        if ((!doors || doors.length === 0) && (!window._intrusiveImages || window._intrusiveImages.length === 0) && !customerSignatureDataUrl) { alert('No doors / images to export'); return; }
+        const zip = new JSZip();
+        let anyImage = false;
+
+        for (let i = 0; i < doors.length; i++) {
+            const door = doors[i];
+            if (!door.images || door.images.length === 0) continue;
+            anyImage = true;
+            const folderName = sanitizeFilename(`${door.doorNumber || 'door-' + (i+1)}`);
+            const folder = zip.folder(folderName);
+            for (let j = 0; j < door.images.length; j++) {
+                const img = door.images[j];
+                try {
+                    const ab = await dataUrlToArrayBuffer(img.dataUrl);
+                    const filename = sanitizeFilename(img.name || `image-${j+1}.jpg`);
+                    folder.file(filename, ab);
+                } catch (e) {
+                    console.warn('Skipping image due to error', e);
+                }
+            }
+        }
+
+        if (window._intrusiveImages && window._intrusiveImages.length) {
+            anyImage = true;
+            const folder = zip.folder('intrusive_images');
+            for (let k = 0; k < window._intrusiveImages.length; k++) {
+                const img = window._intrusiveImages[k];
+                try {
+                    const ab = await dataUrlToArrayBuffer(img.dataUrl);
+                    const filename = sanitizeFilename(img.name || `intrusive-${k+1}.jpg`);
+                    folder.file(filename, ab);
+                } catch (e) {
+                    console.warn('Skipping intrusive image due to error', e);
+                }
+            }
+        }
+
+        if (customerSignatureDataUrl) {
+            anyImage = true;
+            try {
+                const ab = await dataUrlToArrayBuffer(customerSignatureDataUrl);
+                zip.file('customer_signature.png', ab);
+            } catch (e) {
+                console.warn('Skipping signature due to error', e);
+            }
+        }
+
+        if (!anyImage) { alert('No images attached to any doors or survey.'); return; }
+
+        zip.generateAsync({ type: 'blob' }).then(function(content) {
+            const a = document.createElement('a');
+            const url = URL.createObjectURL(content);
+            a.href = url;
+            a.download = `door-images-${Date.now()}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    async function exportAll() {
+        if (!doors || doors.length === 0) { if (!confirm('There are no door entries to include. Continue to export survey extras only?')) return; }
+        const zip = new JSZip();
+
+        // Excel workbook
+        const wb = XLSX.utils.book_new();
+        wb.Props = { Title: "Door Survey Report" };
+
+        // Project Info Sheet
+        const projectData = [
+            ['Project Information'],
+            ['Project Ref', document.getElementById('projectRef').value],
+            ['Project Name', document.getElementById('projectName').value],
+            ['Site Name', document.getElementById('siteName').value],
+            ['Ward Name', document.getElementById('wardName').value],
+            ['Survey Date', document.getElementById('surveyDate').value],
+            ['Surveyor Name', document.getElementById('surveyorName').value]
+        ];
+        const projectSheet = XLSX.utils.aoa_to_sheet(projectData);
+        projectSheet['!cols'] = [{ wch: 20 }, { wch: 30 }];
+        XLSX.utils.book_append_sheet(wb, projectSheet, "Project Info");
+
+        // Notes Sheet
+        const notesData = [
+            ['Notes'],
+            ['PC Notes', document.getElementById('notesPC').value],
+            ['Project Notes', document.getElementById('notesProject').value]
+        ];
+        const notesSheet = XLSX.utils.aoa_to_sheet(notesData);
+        notesSheet['!cols'] = [{ wch: 20 }, { wch: 50 }];
+        XLSX.utils.book_append_sheet(wb, notesSheet, "Notes");
+
+        // Intrusive Survey Sheet
+        const intrusiveData = [
+            ['Intrusive Survey'],
+            ['Intrusive Survey', document.querySelector('input[name="intrusiveSurvey"]:checked')?.value || 'No'],
+            ['Doorset Made Safe', document.querySelector('input[name="doorsetMadeSafe"]:checked')?.value || 'No'],
+            ['Comments', document.getElementById('intrusiveComments').value],
+            ['Images Count', (window._intrusiveImages && window._intrusiveImages.length) || 0]
+        ];
+        const intrusiveSheet = XLSX.utils.aoa_to_sheet(intrusiveData);
+        intrusiveSheet['!cols'] = [{ wch: 20 }, { wch: 30 }];
+        XLSX.utils.book_append_sheet(wb, intrusiveSheet, "Intrusive Survey");
+
+        // Customer Sheet
+        const customerData = [
+            ['Customer Information'],
+            ['Customer Name', document.getElementById('customerName').value],
+            ['Signature Included', customerSignatureDataUrl ? 'Yes' : 'No']
+        ];
+        const customerSheet = XLSX.utils.aoa_to_sheet(customerData);
+        customerSheet['!cols'] = [{ wch: 20 }, { wch: 30 }];
+        XLSX.utils.book_append_sheet(wb, customerSheet, "Customer");
+
+        // Door Schedule Sheet
+        const active = mapping.filter(m => m.include);
+        const doorHeaders = active.map(m => m.label);
+        const doorRows = doors.map(d => active.map(m => {
+            if (m.type === 'field') {
+                if (m.id === 'imagesCount') return (d.images && d.images.length) ? d.images.length : 0;
+                return d[m.id] !== undefined ? d[m.id] : '';
+            } else if (m.type === 'custom') {
+                return (d.customFields && d.customFields[m.id]) ? d.customFields[m.id] : '';
+            }
+            return '';
+        }));
+        const doorData = [doorHeaders, ...doorRows];
+        const doorSheet = XLSX.utils.aoa_to_sheet(doorData);
+        doorSheet['!cols'] = doorHeaders.map(() => ({ wch: 15 }));
+        XLSX.utils.book_append_sheet(wb, doorSheet, "Door Schedule");
+
+        // Convert workbook to blob
+        XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        zip.file('survey.xlsx', wbout);
+
+        // Add images per door
+        let anyImage = false;
+        for (let i = 0; i < doors.length; i++) {
+            const door = doors[i];
+            if (!door.images || door.images.length === 0) continue;
+            anyImage = true;
+            const folderName = sanitizeFilename(`images/${door.doorNumber || 'door-' + (i+1)}`);
+            const folder = zip.folder(folderName);
+            for (let j = 0; j < door.images.length; j++) {
+                const img = door.images[j];
+                try {
+                    const ab = await dataUrlToArrayBuffer(img.dataUrl);
+                    const filename = sanitizeFilename(img.name || `image-${j+1}.jpg`);
+                    folder.file(filename, ab);
+                } catch (e) {
+                    console.warn('Skipping image due to error', e);
+                }
+            }
+        }
+
+        if (window._intrusiveImages && window._intrusiveImages.length) {
+            anyImage = true;
+            const folder = zip.folder('intrusive_images');
+            for (let k = 0; k < window._intrusiveImages.length; k++) {
+                const img = window._intrusiveImages[k];
+                try {
+                    const ab = await dataUrlToArrayBuffer(img.dataUrl);
+                    const filename = sanitizeFilename(img.name || `intrusive-${k+1}.jpg`);
+                    folder.file(filename, ab);
+                } catch (e) {
+                    console.warn('Skipping intrusive image due to error', e);
+                }
+            }
+        }
+
+        if (customerSignatureDataUrl) {
+            anyImage = true;
+            try {
+                const ab = await dataUrlToArrayBuffer(customerSignatureDataUrl);
+                zip.file('customer_signature.png', ab);
+            } catch (e) {
+                console.warn('Skipping signature due to error', e);
+            }
+        }
+
+        zip.generateAsync({ type: 'blob' }).then(function(content) {
+            const a = document.createElement('a');
+            const url = URL.createObjectURL(content);
+            a.href = url;
+            a.download = `survey-and-images-${Date.now()}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    function sanitizeFilename(name) {
+        return name.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_').replace(/\s+/g, '_');
+    }
+
+    function showImagesModal(doorIndex) {
+        const door = doors[doorIndex];
+        const modal = document.getElementById('imageModal');
+        const modalBody = document.getElementById('modalBody');
+        const modalTitle = document.getElementById('modalTitle');
+        modalTitle.innerText = `Images for ${door.doorNumber || 'Door ' + (doorIndex+1)}`;
+        modalBody.innerHTML = '';
+        if (!door.images || door.images.length === 0) {
+            modalBody.innerHTML = '<p>No images attached.</p>';
+        } else {
+            door.images.forEach((img, idx) => {
+                const card = document.createElement('div');
+                card.className = 'image-card';
+                const imageEl = document.createElement('img');
+                imageEl.src = img.dataUrl;
+                imageEl.alt = img.name || `Image ${idx+1}`;
+                imageEl.style.maxHeight = '140px';
+                card.appendChild(imageEl);
+                const nameEl = document.createElement('div');
+                nameEl.style.fontSize = '12px';
+                nameEl.style.color = '#333';
+                nameEl.style.marginTop = '6px';
+                nameEl.innerText = img.name || `image-${idx+1}`;
+                card.appendChild(nameEl);
+
+                const dlBtn = document.createElement('button');
+                dlBtn.innerText = 'Download';
+                dlBtn.className = 'small-btn';
+                dlBtn.style.background = '#28a745';
+                dlBtn.style.color = 'white';
+                dlBtn.onclick = () => {
+                    const a = document.createElement('a');
+                    a.href = img.dataUrl;
+                    a.download = sanitizeFilename(img.name || `image-${idx+1}.jpg`);
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                };
+                card.appendChild(dlBtn);
+
+                modalBody.appendChild(card);
+            });
+        }
+        modal.style.display = 'flex';
+    }
+
+    function closeImageModal() {
+        const modal = document.getElementById('imageModal');
+        modal.style.display = 'none';
+    }
+
+    function hideImageModal(event) {
+        if (event.target.id === 'imageModal') closeImageModal();
+    }
+
+    function openMappingModal() {
+        renderMappingList();
+        document.getElementById('mappingModal').style.display = 'flex';
+    }
+    function closeMappingModal() {
+        saveMapping(mapping);
+        renderCustomFields();
+        document.getElementById('mappingModal').style.display = 'none';
+    }
+
+    function renderMappingList() {
+        const list = document.getElementById('mappingList');
+        list.innerHTML = '';
+        mapping.forEach((m, idx) => {
+            const row = document.createElement('div');
+            row.className = 'mapping-row';
+            const incl = document.createElement('input');
+            incl.type = 'checkbox';
+            incl.checked = !!m.include;
+            incl.title = 'Include in Excel';
+            incl.onclick = () => { m.include = incl.checked; };
+            row.appendChild(incl);
+
+            const labelIn = document.createElement('input');
+            labelIn.type = 'text';
+            labelIn.value = m.label;
+            labelIn.oninput = () => { m.label = labelIn.value; };
+            row.appendChild(labelIn);
+
+            const idDisplay = document.createElement('div');
+            idDisplay.style.width = '140px';
+            idDisplay.style.fontSize = '13px';
+            idDisplay.style.color = '#333';
+            idDisplay.style.padding = '6px';
+            idDisplay.style.background = '#f1f1f1';
+            idDisplay.style.borderRadius = '6px';
+            idDisplay.innerText = m.id + (m.type === 'custom' ? ' (custom)' : '');
+            row.appendChild(idDisplay);
+
+            const controls = document.createElement('div');
+            controls.className = 'mapping-controls';
+
+            const up = document.createElement('button');
+            up.className = 'secondary';
+            up.style.minWidth = '48px';
+            up.innerText = '↑';
+            up.onclick = () => { if (idx > 0) { const tmp = mapping[idx-1]; mapping[idx-1] = mapping[idx]; mapping[idx] = tmp; renderMappingList(); } };
+            controls.appendChild(up);
+
+            const down = document.createElement('button');
+            down.className = 'secondary';
+            down.style.minWidth = '48px';
+            down.innerText = '↓';
+            down.onclick = () => { if (idx < mapping.length - 1) { const tmp = mapping[idx+1]; mapping[idx+1] = mapping[idx]; mapping[idx] = tmp; renderMappingList(); } };
+            controls.appendChild(down);
+
+            if (m.type === 'custom') {
+                const del = document.createElement('button');
+                del.className = 'danger';
+                del.style.minWidth = '48px';
+                del.innerText = '✕';
+                del.onclick = () => { mapping.splice(idx, 1); renderMappingList(); };
+                controls.appendChild(del);
+            }
+
+            row.appendChild(controls);
+            list.appendChild(row);
+        });
+    }
+
+    function resetMappingToDefaults() {
+        mapping = JSON.parse(JSON.stringify(DEFAULT_MAPPING));
+        renderMappingList();
+    }
+
+    function addCustomField() {
+        const label = document.getElementById('newFieldLabel').value.trim();
+        if (!label) { alert('Please enter a field label'); return; }
+        const id = 'custom_' + Date.now();
+        mapping.push({ id: id, label: label, include: true, type: 'custom' });
+        renderMappingList();
+        document.getElementById('newFieldLabel').value = '';
+    }
+
+    loadData();
+    renderCustomFields();
+</script>
+
 </body>
 </html>
