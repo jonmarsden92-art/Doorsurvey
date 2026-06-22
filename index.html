@@ -358,6 +358,17 @@
             font-size: 13px;
         }
 
+        /* ── DIMENSION TYPE FIELDS ── */
+        .dim-type-note {
+            background: rgba(78,205,196,0.1);
+            border-left: 3px solid var(--accent2);
+            padding: 10px 12px;
+            margin: 12px 0;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--text2);
+        }
+
         @media (max-width: 520px) {
             .form-grid { grid-template-columns: 1fr; }
             .form-grid .full { grid-column: 1; }
@@ -453,28 +464,30 @@
                 <input id="doorName" placeholder="e.g. Main Entrance">
             </div>
             <div class="form-group">
-                <label class="field-label">Width (mm)</label>
+                <label class="field-label">Dimension Detail *</label>
+                <select id="dimDetail" onchange="updateDimensionLabels()">
+                    <option value="">— Select —</option>
+                    <option value="IFD">IFD - Inner Frame Dimensions</option>
+                    <option value="OFD">OFD - Outer Frame Dimensions</option>
+                    <option value="S/O">S/O - Structural Opening</option>
+                </select>
+            </div>
+            <div class="form-group" id="dimTypeNote" style="display:none;">
+            </div>
+            <div class="form-group">
+                <label class="field-label" id="widthLabel">Width (mm)</label>
                 <input id="width" type="number" placeholder="0">
             </div>
             <div class="form-group">
-                <label class="field-label">Height (mm)</label>
+                <label class="field-label" id="heightLabel">Height (mm)</label>
                 <input id="height" type="number" placeholder="0">
             </div>
             <div class="form-group">
-                <label class="field-label">Frame Depth</label>
+                <label class="field-label">Frame Depth (mm)</label>
                 <input id="frameDepth" placeholder="—">
             </div>
             <div class="form-group">
-                <label class="field-label">Dimension Detail</label>
-                <select id="dimDetail">
-                    <option value="">— Select —</option>
-                    <option value="IFD">IFD</option>
-                    <option value="OFD">OFD</option>
-                    <option value="S/O">S/O</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="field-label">Door Thickness</label>
+                <label class="field-label">Door Thickness (mm)</label>
                 <input id="doorThickness" placeholder="—">
             </div>
             <div class="form-group">
@@ -562,8 +575,8 @@
             <table id="doorTable">
                 <thead>
                     <tr>
-                        <th>Door No.</th><th>Door Name</th><th>Width</th><th>Height</th>
-                        <th>Frame Depth</th><th>Dim Detail</th><th>Thickness</th>
+                        <th>Door No.</th><th>Door Name</th><th>Dim Type</th><th>Width</th><th>Height</th>
+                        <th>Frame Depth</th><th>Thickness</th>
                         <th>Frame 1</th><th>Frame 2</th><th>Leaf Finish</th>
                         <th>Frame Finish</th><th>Architrave</th><th>Arch. Finish</th>
                         <th>Cylinder</th><th>Suite Ref</th><th>Override</th>
@@ -727,6 +740,25 @@
         body.classList.toggle('collapsed');
     }
 
+    // ─── DIMENSION TYPE LABELS ───
+    const DIMENSION_TYPES = {
+        'IFD': { label: 'Inner Frame Dimensions', note: 'Measuring the inside dimensions of the frame opening' },
+        'OFD': { label: 'Outer Frame Dimensions', note: 'Measuring the outside dimensions of the outer frame' },
+        'S/O': { label: 'Structural Opening', note: 'Measuring the structural opening dimensions' }
+    };
+
+    function updateDimensionLabels() {
+        const dimType = document.getElementById('dimDetail').value;
+        const noteEl = document.getElementById('dimTypeNote');
+        
+        if (dimType && DIMENSION_TYPES[dimType]) {
+            noteEl.innerHTML = `<div class="dim-type-note">${DIMENSION_TYPES[dimType].note}</div>`;
+            noteEl.style.display = 'block';
+        } else {
+            noteEl.style.display = 'none';
+        }
+    }
+
     // ─── STATE ───
     document.getElementById('surveyDate').value = new Date().toISOString().split('T')[0];
     let doors = [];
@@ -739,10 +771,10 @@
     const DEFAULT_MAPPING = [
         { id: 'doorNumber',       label: 'Door Number',              include: true, type: 'field' },
         { id: 'doorName',         label: 'Door Name',                include: true, type: 'field' },
+        { id: 'dimDetail',        label: 'Dimension Detail',         include: true, type: 'field' },
         { id: 'width',            label: 'Width (mm)',               include: true, type: 'field' },
         { id: 'height',           label: 'Height (mm)',              include: true, type: 'field' },
         { id: 'frameDepth',       label: 'Frame Depth',              include: true, type: 'field' },
-        { id: 'dimDetail',        label: 'Dimension Detail',         include: true, type: 'field' },
         { id: 'doorThickness',    label: 'Door Thickness',           include: true, type: 'field' },
         { id: 'frameProfile1',    label: 'Frame Profile – Legs',     include: true, type: 'field' },
         { id: 'frameProfile2',    label: 'Frame Profile – Head',     include: true, type: 'field' },
@@ -971,6 +1003,9 @@
     async function addDoor() {
         const dNo = document.getElementById('doorNumber').value.trim();
         if (!dNo) { alert('Please enter a Door Number'); return; }
+        const dimDetail = document.getElementById('dimDetail').value;
+        if (!dimDetail) { alert('Please select a Dimension Detail type'); return; }
+        
         let images = [];
         try { images = await readFilesAsDataURLs(document.getElementById('imagesInput').files); } catch(e) { alert('Error reading images.'); }
 
@@ -983,7 +1018,7 @@
             width: document.getElementById('width').value,
             height: document.getElementById('height').value,
             frameDepth: document.getElementById('frameDepth').value,
-            dimDetail: document.getElementById('dimDetail').value,
+            dimDetail: dimDetail,
             doorThickness: document.getElementById('doorThickness').value,
             frameProfile1: document.getElementById('frameProfile1').value,
             frameProfile2: document.getElementById('frameProfile2').value,
@@ -999,299 +1034,217 @@
         };
         lastDoor = { ...door }; delete lastDoor.doorNumber; delete lastDoor.doorName; delete lastDoor.extraItems;
         doors.push(door);
-        refreshTable(); saveData();
-
-        // Reset door-specific fields
-        ['doorNumber','doorName','imagesInput','extraItemInput'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-        document.getElementById('dimDetail').value = '';
-        currentExtraItems = []; renderExtraItems();
-        mapping.forEach(m => { if (m.type === 'custom') { const el = document.getElementById(`custom_${m.id}`); if (el) el.value = ''; } });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        refreshTable(); resetForm(); saveData();
+        alert(`Door ${dNo} added successfully!`);
     }
 
-    // ─── REFRESH TABLE ───
-    function refreshTable() {
-        const tbody = document.getElementById('doorTableBody');
-        tbody.innerHTML = '';
-        let totalImages = 0;
-        doors.forEach((door, idx) => {
-            const row = tbody.insertRow();
-            const vals = [door.doorNumber, door.doorName, door.width, door.height, door.frameDepth,
-                door.dimDetail, door.doorThickness, door.frameProfile1, door.frameProfile2,
-                door.doorLeafFinish, door.doorFrameFinish, door.architraveProfile, door.architraveFinish,
-                door.cylinderProfile, door.suiteRef, door.overrideType, door.handing];
-            vals.forEach(v => { row.insertCell().textContent = (v !== undefined && v !== null && v !== '') ? v : '—'; });
-
-            // Items
-            const ic = row.insertCell();
-            const itemCount = (door.extraItems && door.extraItems.length) || 0;
-            ic.innerHTML = itemCount
-                ? `<button class="table-btn table-btn-blue" onclick="showItemsModal(${idx})">${itemCount} item${itemCount>1?'s':''}</button>`
-                : '<span style="color:var(--text3)">—</span>';
-
-            // Images
-            const imgc = row.insertCell();
-            const imgCount = (door.images && door.images.length) || 0;
-            totalImages += imgCount;
-            imgc.innerHTML = imgCount
-                ? `<button class="table-btn table-btn-blue" onclick="showImagesModal(${idx})">${imgCount} img${imgCount>1?'s':''}</button>`
-                : '<span style="color:var(--text3)">—</span>';
-
-            // Delete
-            const dc = row.insertCell();
-            dc.innerHTML = `<button class="table-btn table-btn-red" onclick="deleteDoor(${idx})">✕</button>`;
+    function resetForm() {
+        currentExtraItems = [];
+        renderExtraItems();
+        ['doorNumber','doorName','width','height','frameDepth','dimDetail','doorThickness',
+         'frameProfile1','frameProfile2','doorLeafFinish','doorFrameFinish','architraveProfile',
+         'architraveFinish','cylinderProfile','suiteRef','overrideType','handing','imagesInput'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.value = ''; el.checked = false; }
         });
-        document.getElementById('doorCountNum').textContent = doors.length;
-        document.getElementById('imageCountNum').textContent = totalImages;
-        document.getElementById('headerCount').textContent = `${doors.length} Door${doors.length !== 1 ? 's' : ''}`;
-    }
-
-    function deleteDoor(idx) {
-        if (confirm('Delete this door?')) { doors.splice(idx, 1); refreshTable(); saveData(); }
-    }
-    function clearAllDoors() {
-        if (confirm('Clear all doors?')) { doors = []; refreshTable(); saveData(); }
-    }
-
-    function copyPrevious() {
-        if (!lastDoor) { alert('No previous door data to copy'); return; }
-        Object.keys(lastDoor).forEach(k => { const el = document.getElementById(k); if (el && typeof lastDoor[k] === 'string') el.value = lastDoor[k]; });
         mapping.forEach(m => {
             if (m.type === 'custom') {
                 const el = document.getElementById(`custom_${m.id}`);
-                if (el && lastDoor.customFields) el.value = lastDoor.customFields[m.id] || '';
+                if (el) el.value = '';
             }
         });
+        updateDimensionLabels();
     }
 
-    // ─── IMAGES MODAL ───
+    function copyPrevious() {
+        if (!lastDoor) { alert('No previous door to copy'); return; }
+        document.getElementById('width').value = lastDoor.width || '';
+        document.getElementById('height').value = lastDoor.height || '';
+        document.getElementById('frameDepth').value = lastDoor.frameDepth || '';
+        document.getElementById('dimDetail').value = lastDoor.dimDetail || '';
+        updateDimensionLabels();
+        document.getElementById('doorThickness').value = lastDoor.doorThickness || '';
+        document.getElementById('frameProfile1').value = lastDoor.frameProfile1 || '';
+        document.getElementById('frameProfile2').value = lastDoor.frameProfile2 || '';
+        document.getElementById('doorLeafFinish').value = lastDoor.doorLeafFinish || '';
+        document.getElementById('doorFrameFinish').value = lastDoor.doorFrameFinish || '';
+        document.getElementById('architraveProfile').value = lastDoor.architraveProfile || '';
+        document.getElementById('architraveFinish').value = lastDoor.architraveFinish || '';
+        document.getElementById('cylinderProfile').value = lastDoor.cylinderProfile || '';
+        document.getElementById('suiteRef').value = lastDoor.suiteRef || '';
+        document.getElementById('overrideType').value = lastDoor.overrideType || '';
+        document.getElementById('handing').value = lastDoor.handing || '';
+        currentExtraItems = [...(lastDoor.extraItems || [])];
+        renderExtraItems();
+        if (lastDoor.customFields) {
+            mapping.forEach(m => {
+                if (m.type === 'custom') {
+                    const el = document.getElementById(`custom_${m.id}`);
+                    if (el) el.value = lastDoor.customFields[m.id] || '';
+                }
+            });
+        }
+    }
+
+    function refreshTable() {
+        const tbody = document.getElementById('doorTableBody');
+        tbody.innerHTML = '';
+        doors.forEach((door, idx) => {
+            const row = tbody.insertRow();
+            const dimTypeLabel = DIMENSION_TYPES[door.dimDetail]?.label || door.dimDetail;
+            
+            const cells = [
+                door.doorNumber, door.doorName, dimTypeLabel, door.width, door.height,
+                door.frameDepth, door.doorThickness, door.frameProfile1, door.frameProfile2,
+                door.doorLeafFinish, door.doorFrameFinish, door.architraveProfile,
+                door.architraveFinish, door.cylinderProfile, door.suiteRef, door.overrideType,
+                door.handing, (door.extraItems?.length || 0) + ' item(s)', 
+                (door.images?.length || 0) + ' img(s)'
+            ];
+            cells.forEach(cell => { row.insertCell().textContent = cell; });
+            
+            const actCell = row.insertCell();
+            actCell.innerHTML = `<button class="table-btn table-btn-blue" onclick="showItemsModal(${idx})">Items</button>
+                                 <button class="table-btn table-btn-blue" onclick="showImagesModal(${idx})">Photos</button>
+                                 <button class="table-btn table-btn-red" onclick="deleteDoor(${idx})">X</button>`;
+        });
+        
+        document.getElementById('doorCountNum').textContent = doors.length;
+        document.getElementById('headerCount').textContent = doors.length + ' Door' + (doors.length !== 1 ? 's' : '');
+        let imgCount = 0;
+        doors.forEach(d => { imgCount += d.images ? d.images.length : 0; });
+        document.getElementById('imageCountNum').textContent = imgCount;
+    }
+
+    // ─── IMAGE MODAL ───
     function showImagesModal(idx) {
         const door = doors[idx];
         document.getElementById('modalTitle').textContent = `Images — ${door.doorNumber || 'Door '+(idx+1)}`;
         const body = document.getElementById('modalBody');
         body.innerHTML = '';
         if (!door.images || !door.images.length) {
-            body.innerHTML = '<p style="color:var(--text3)">No images attached.</p>';
+            body.innerHTML = '<p style="color:var(--text3);text-align:center;padding:20px;">No images attached.</p>';
         } else {
             door.images.forEach((img, i) => {
                 const card = document.createElement('div');
                 card.className = 'image-card';
-                card.innerHTML = `<img src="${img.dataUrl}" alt="${img.name||'img'}"><div class="img-name">${img.name||'image-'+(i+1)}</div>`;
-                const dl = document.createElement('button');
-                dl.className = 'btn btn-success'; dl.style.marginTop = '8px'; dl.style.padding = '6px 10px'; dl.style.fontSize = '11px';
-                dl.textContent = '↓ Download';
-                dl.onclick = () => { const a = document.createElement('a'); a.href = img.dataUrl; a.download = sanitize(img.name||`image-${i+1}.jpg`); a.click(); };
-                card.appendChild(dl);
+                card.innerHTML = `<img src="${img.dataUrl}" alt="${img.name}">
+                                  <div class="img-name">${img.name}</div>
+                                  <button class="btn btn-danger" style="margin-top:6px;padding:4px 8px;font-size:11px;width:100%;" onclick="deleteImageFromDoor(${idx},${i})">Delete</button>`;
                 body.appendChild(card);
             });
         }
         document.getElementById('imageModal').classList.add('open');
     }
     function closeImageModal() { document.getElementById('imageModal').classList.remove('open'); }
-
-    // ─── MAPPING MODAL ───
-    function openMappingModal() { renderMappingList(); document.getElementById('mappingModal').classList.add('open'); }
-    function closeMappingModal() { saveMapping(mapping); renderCustomFields(); document.getElementById('mappingModal').classList.remove('open'); }
-
-    function renderMappingList() {
-        const list = document.getElementById('mappingList');
-        list.innerHTML = '';
-        mapping.forEach((m, idx) => {
-            const row = document.createElement('div');
-            row.className = 'mapping-row';
-
-            const chk = document.createElement('input'); chk.type = 'checkbox'; chk.checked = !!m.include;
-            chk.title = 'Include in Excel'; chk.onclick = () => { m.include = chk.checked; };
-            row.appendChild(chk);
-
-            const lbl = document.createElement('input'); lbl.type = 'text'; lbl.value = m.label;
-            lbl.oninput = () => { m.label = lbl.value; };
-            row.appendChild(lbl);
-
-            const idBadge = document.createElement('div');
-            idBadge.className = 'id-badge';
-            idBadge.textContent = m.id + (m.type==='custom' ? ' ✦' : '');
-            row.appendChild(idBadge);
-
-            const ctrl = document.createElement('div');
-            ctrl.style.display = 'flex'; ctrl.style.gap = '4px';
-
-            const up = document.createElement('button'); up.className = 'btn btn-secondary'; up.style.padding = '6px 10px'; up.textContent = '↑';
-            up.onclick = () => { if (idx > 0) { [mapping[idx-1], mapping[idx]] = [mapping[idx], mapping[idx-1]]; renderMappingList(); } };
-            const dn = document.createElement('button'); dn.className = 'btn btn-secondary'; dn.style.padding = '6px 10px'; dn.textContent = '↓';
-            dn.onclick = () => { if (idx < mapping.length-1) { [mapping[idx+1], mapping[idx]] = [mapping[idx], mapping[idx+1]]; renderMappingList(); } };
-            ctrl.appendChild(up); ctrl.appendChild(dn);
-
-            if (m.type === 'custom') {
-                const del = document.createElement('button'); del.className = 'btn btn-danger'; del.style.padding = '6px 10px'; del.textContent = '✕';
-                del.onclick = () => { mapping.splice(idx, 1); renderMappingList(); };
-                ctrl.appendChild(del);
-            }
-            row.appendChild(ctrl);
-            list.appendChild(row);
-        });
+    function deleteImageFromDoor(doorIdx, imgIdx) {
+        if (!confirm('Delete this image?')) return;
+        doors[doorIdx].images.splice(imgIdx, 1);
+        refreshTable(); saveData(); showImagesModal(doorIdx);
     }
 
-    function resetMappingToDefaults() { mapping = JSON.parse(JSON.stringify(DEFAULT_MAPPING)); renderMappingList(); }
+    function deleteDoor(idx) {
+        if (!confirm('Delete this door?')) return;
+        doors.splice(idx, 1);
+        refreshTable(); saveData();
+    }
 
+    function clearAllDoors() {
+        if (!confirm('Delete all doors? This cannot be undone.')) return;
+        doors = [];
+        refreshTable(); saveData();
+    }
+
+    // ─── MAPPING MODAL ───
+    function openMappingModal() {
+        const list = document.getElementById('mappingList');
+        list.innerHTML = '';
+        mapping.forEach(m => {
+            const row = document.createElement('div');
+            row.className = 'mapping-row';
+            const chk = `<input type="checkbox" ${m.include ? 'checked' : ''} onchange="m.include=this.checked;saveMapping(mapping);">`;
+            const lbl = m.type === 'field' ? m.label : `<input type="text" value="${m.label}" onchange="m.label=this.value;saveMapping(mapping);">`;
+            const delBtn = m.type === 'field' ? '' : `<button class="btn btn-danger" style="padding:4px 8px;font-size:11px;" onclick="deleteCustomField('${m.id}')">Delete</button>`;
+            row.innerHTML = chk + `<label style="flex:1; margin-left:8px;">${lbl}</label>${delBtn}`;
+            list.appendChild(row);
+        });
+        document.getElementById('mappingModal').classList.add('open');
+    }
+    function closeMappingModal() { document.getElementById('mappingModal').classList.remove('open'); }
+    function deleteCustomField(id) {
+        mapping = mapping.filter(m => m.id !== id);
+        saveMapping(mapping);
+        openMappingModal();
+    }
     function addCustomField() {
         const lbl = document.getElementById('newFieldLabel').value.trim();
         if (!lbl) { alert('Enter a field label'); return; }
-        mapping.push({ id: 'custom_' + Date.now(), label: lbl, include: true, type: 'custom' });
-        renderMappingList();
+        const id = 'custom_' + Date.now();
+        mapping.push({ id, label: lbl, include: true, type: 'custom' });
+        saveMapping(mapping);
         document.getElementById('newFieldLabel').value = '';
+        renderCustomFields();
+        openMappingModal();
+    }
+    function resetMappingToDefaults() {
+        mapping = JSON.parse(JSON.stringify(DEFAULT_MAPPING));
+        saveMapping(mapping);
+        renderCustomFields();
+        openMappingModal();
     }
 
-    // ─── EXCEL EXPORT (single sheet, full table) ───
-    function buildWorkbook() {
-        const wb = XLSX.utils.book_new();
-        wb.Props = { Title: 'Door Survey Report' };
-
-        // ── Sheet 1: Full Survey (all in one) ──
-        const active = mapping.filter(m => m.include);
-        const projectRef = document.getElementById('projectRef').value;
-        const projectName = document.getElementById('projectName').value;
-        const siteName = document.getElementById('siteName').value;
-        const wardName = document.getElementById('wardName').value;
-        const surveyDate = document.getElementById('surveyDate').value;
-        const surveyorName = document.getElementById('surveyorName').value;
-
-        // Meta header rows
-        const metaRows = [
-            ['DOOR SURVEY REPORT', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-            [],
-            ['Project Ref:', projectRef,  '', 'Project Name:', projectName, '', 'Site Name:', siteName, '', 'Ward:', wardName, '', 'Date:', surveyDate, '', 'Surveyor:', surveyorName],
-            [],
-        ];
-
-        // Door schedule headers and data
-        const doorHeaders = active.map(m => m.label);
-        const doorRows = doors.map(d => active.map(m => {
-            if (m.type === 'field') {
-                if (m.id === 'imagesCount') return (d.images && d.images.length) ? d.images.length : 0;
-                if (m.id === 'items') return (d.extraItems && d.extraItems.length) ? d.extraItems.join(', ') : '';
-                return d[m.id] !== undefined ? d[m.id] : '';
-            }
-            if (m.type === 'custom') return (d.customFields && d.customFields[m.id]) ? d.customFields[m.id] : '';
-            return '';
-        }));
-
-        const allRows = [
-            ...metaRows,
-            doorHeaders,
-            ...doorRows,
-            [],
-            ['--- SURVEY NOTES ---'],
-            ['PC Notes:', document.getElementById('notesPC').value],
-            ['Project Notes:', document.getElementById('notesProject').value],
-            [],
-            ['--- INTRUSIVE SURVEY ---'],
-            ['Undertaken:', checkedVal('intrusiveSurvey') || 'No', 'Doorset Made Safe:', checkedVal('doorsetMadeSafe') || 'No'],
-            ['Damage Details:', document.getElementById('intrusiveComments').value],
-            ['Intrusive Images Count:', (window._intrusiveImages && window._intrusiveImages.length) || 0],
-            [],
-            ['--- CUSTOMER ---'],
-            ['Customer Name:', document.getElementById('customerName').value],
-            ['Signature Included:', customerSignatureDataUrl ? 'Yes' : 'No']
-        ];
-
-        const ws = XLSX.utils.aoa_to_sheet(allRows);
-
-        // Column widths
-        const colWidths = active.map(m => {
-            if (['doorNumber','doorName','width','height','handing'].includes(m.id)) return { wch: 16 };
-            return { wch: 20 };
-        });
-        // Make sure at least some cols are wide
-        if (colWidths.length < 4) { while (colWidths.length < 8) colWidths.push({ wch: 20 }); }
-        ws['!cols'] = colWidths;
-
-        // Row heights
-        ws['!rows'] = [];
-        ws['!rows'][0] = { hpt: 28 }; // title row
-
-        XLSX.utils.book_append_sheet(wb, ws, 'Door Survey');
-        return wb;
-    }
-
+    // ─── EXPORT ───
     function exportExcel() {
-        if (!doors || doors.length === 0) { alert('No doors to export'); return; }
-        const wb = buildWorkbook();
-        XLSX.writeFile(wb, `door-survey-${Date.now()}.xlsx`);
-    }
-
-    async function dataUrlToArrayBuffer(dataUrl) {
-        const res = await fetch(dataUrl);
-        return await res.arrayBuffer();
+        const headers = mapping.filter(m => m.include).map(m => m.label);
+        const rows = doors.map(d => {
+            return mapping.filter(m => m.include).map(m => {
+                if (m.id === 'items') return (d.extraItems || []).join('; ');
+                if (m.id === 'imagesCount') return d.images ? d.images.length : 0;
+                if (m.id === 'dimDetail') return DIMENSION_TYPES[d[m.id]]?.label || d[m.id];
+                return d[m.id] || '';
+            });
+        });
+        
+        const data = [headers, ...rows];
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Doors');
+        const filename = `DoorSurvey_${document.getElementById('projectRef').value || 'Export'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(wb, filename);
     }
 
     async function exportImages() {
-        let anyImage = false;
-        for (const d of doors) { if (d.images && d.images.length) { anyImage = true; break; } }
-        if (!anyImage && (!window._intrusiveImages||!window._intrusiveImages.length) && !customerSignatureDataUrl) {
-            alert('No images to export'); return;
-        }
+        if (!doors.some(d => d.images && d.images.length)) { alert('No images to export'); return; }
         const zip = new JSZip();
-        for (let i = 0; i < doors.length; i++) {
-            const door = doors[i];
-            if (!door.images || !door.images.length) continue;
-            const folder = zip.folder(sanitize(door.doorNumber || `door-${i+1}`));
-            for (let j = 0; j < door.images.length; j++) {
-                try { folder.file(sanitize(door.images[j].name || `image-${j+1}.jpg`), await dataUrlToArrayBuffer(door.images[j].dataUrl)); } catch(e){}
+        doors.forEach((door, idx) => {
+            if (door.images && door.images.length) {
+                door.images.forEach((img, imgIdx) => {
+                    const folder = zip.folder(`${door.doorNumber || 'Door_' + (idx + 1)}`);
+                    const base64 = img.dataUrl.split(',')[1];
+                    folder.file(img.name, base64, { base64: true });
+                });
             }
-        }
-        if (window._intrusiveImages && window._intrusiveImages.length) {
-            const f = zip.folder('intrusive_images');
-            for (let k = 0; k < window._intrusiveImages.length; k++) {
-                try { f.file(sanitize(window._intrusiveImages[k].name || `intrusive-${k+1}.jpg`), await dataUrlToArrayBuffer(window._intrusiveImages[k].dataUrl)); } catch(e){}
-            }
-        }
-        if (customerSignatureDataUrl) {
-            try { zip.file('customer_signature.png', await dataUrlToArrayBuffer(customerSignatureDataUrl)); } catch(e){}
-        }
-        const content = await zip.generateAsync({ type: 'blob' });
-        triggerDownload(content, `door-images-${Date.now()}.zip`);
+        });
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DoorSurvey_Images_${new Date().toISOString().split('T')[0]}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     async function exportAll() {
-        if (!doors || !doors.length) { if (!confirm('No doors added. Continue exporting survey extras only?')) return; }
-        const zip = new JSZip();
-        const wb = buildWorkbook();
-        zip.file('survey.xlsx', XLSX.write(wb, { bookType: 'xlsx', type: 'array' }));
-
-        for (let i = 0; i < doors.length; i++) {
-            const door = doors[i];
-            if (!door.images || !door.images.length) continue;
-            const folder = zip.folder(`images/${sanitize(door.doorNumber || `door-${i+1}`)}`);
-            for (let j = 0; j < door.images.length; j++) {
-                try { folder.file(sanitize(door.images[j].name || `image-${j+1}.jpg`), await dataUrlToArrayBuffer(door.images[j].dataUrl)); } catch(e){}
-            }
-        }
-        if (window._intrusiveImages && window._intrusiveImages.length) {
-            const f = zip.folder('intrusive_images');
-            for (let k = 0; k < window._intrusiveImages.length; k++) {
-                try { f.file(sanitize(window._intrusiveImages[k].name || `intrusive-${k+1}.jpg`), await dataUrlToArrayBuffer(window._intrusiveImages[k].dataUrl)); } catch(e){}
-            }
-        }
-        if (customerSignatureDataUrl) {
-            try { zip.file('customer_signature.png', await dataUrlToArrayBuffer(customerSignatureDataUrl)); } catch(e){}
-        }
-        const content = await zip.generateAsync({ type: 'blob' });
-        triggerDownload(content, `survey-${Date.now()}.zip`);
+        exportExcel();
+        await new Promise(r => setTimeout(r, 500));
+        exportImages();
     }
-
-    function triggerDownload(blob, filename) {
-        const a = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        a.href = url; a.download = filename;
-        document.body.appendChild(a); a.click();
-        document.body.removeChild(a); URL.revokeObjectURL(url);
-    }
-    function sanitize(s) { return String(s).replace(/[<>:"/\\|?*\u0000-\u001F]/g,'_').replace(/\s+/g,'_'); }
 
     // ─── INIT ───
     loadData();
     renderCustomFields();
+    refreshTable();
 </script>
+
 </body>
 </html>
